@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
 	"runtime"
@@ -10,23 +11,21 @@ import (
 	pkgerrors "github.com/pkg/errors"
 )
 
+func Test_pkgWithStack(t *testing.T) {
+	err := pkgerrors.WithStack(stderrors.New("ye error"))
+	fmt.Printf("err:%+v", err)
+}
+
 // go test -benchmem -run=^$ -bench "^(BenchmarkLxtNew)$" github.com/lxt1045/errors -count=1 -v -cpuprofile cpu.prof -c
 // go tool pprof ./errors.test cpu.prof
 // go test -benchmem -run=^$ -bench "^(BenchmarkLxtNew)$" github.com/lxt1045/errors -test.memprofilerate=1 -count=1 -v -memprofile mem.prof -c
 // go tool pprof ./errors.test mem.prof
 // web
 func BenchmarkLxtNew(b *testing.B) {
-	b.Run("New", func(b *testing.B) {
+	b.Run("NewErrSkip", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			New("ye error") //有 interface{}, 所以有逃逸?
-		}
-		b.StopTimer()
-	})
-	b.Run("newErr", func(b *testing.B) {
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
-			NewErr(-1, "ye error", "")
+			NewErr(-1, "ye error") //nolint
 		}
 		b.StopTimer()
 	})
@@ -34,39 +33,42 @@ func BenchmarkLxtNew(b *testing.B) {
 
 //
 func BenchmarkNew(b *testing.B) {
-	type run struct {
+	runs := []struct {
 		funcName string //函数名字
 		f        func() //调用方法
-	}
-
-	stdNew := func() {
-		stderrors.New("ye error")
-	}
-	stdCallerNew := func() {
-		_, file, line, _ := runtime.Caller(2)
-		stderrors.New("ye error, " + file + ", " + strconv.Itoa(line))
-	}
-
-	pkgNew := func() {
-		pkgerrors.New("ye error")
-	}
-
-	lxtNew := func() {
-		New("ye error")
-	}
-
-	runs := []run{
-		{"stdNew", stdNew},
-		{"stdCallerNew", stdCallerNew},
-		{"pkgNew", pkgNew},
-		{"lxtNew", lxtNew},
+	}{
+		{"std.New", func() {
+			stderrors.New("ye error")
+		}},
+		{"runtime.Caller", func() {
+			runtime.Caller(2)
+		}},
+		{"runtime.Callers", func() {
+			var pcs [DefaultDepth]uintptr
+			runtime.Callers(3, pcs[:])
+		}},
+		{"pkg.New", func() {
+			pkgerrors.New("ye error")
+		}}, //nolint
+		{"pkg.WithStack", func() {
+			pkgerrors.WithStack(stderrors.New("ye error"))
+		}},
+		{"lxt.New", func() {
+			New("ye error")
+		}},
+		{"lxt.NewErr", func() {
+			NewErr(-1, "ye error")
+		}},
+		{"lxt.buildStack", func() {
+			buildStack(1 + 1)
+		}},
 	}
 	for _, r := range runs {
 		name := r.funcName
 		b.Run(name, func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				r.f()
+				r.f() //nolint
 			}
 			b.StopTimer()
 		})
@@ -84,6 +86,7 @@ func pkgNew(depth int) error {
 	if depth <= 0 {
 		return pkgerrors.New("ye error")
 	}
+	// pkgerrors.Wrap(pkgNew(depth - 1))
 	return pkgerrors.WithStack(pkgNew(depth - 1))
 }
 
@@ -112,26 +115,12 @@ func BenchmarkWarp(b *testing.B) {
 			b.Run(name, func(b *testing.B) {
 				b.ReportAllocs()
 				for i := 0; i < b.N; i++ {
-					r.f(depth)
+					r.f(depth) //nolint
 				}
 				b.StopTimer()
 			})
 		}
 	}
-}
-
-func lxtError2(depth int) error {
-	if depth <= 0 {
-		return New("ye error")
-	}
-	return pkgNew(depth - 1)
-}
-
-func lxtError(depth int) error {
-	if depth <= 0 {
-		return New("ye error")
-	}
-	return lxtNew(depth - 1)
 }
 
 func BenchmarkErrorFormat(b *testing.B) {
@@ -148,7 +137,7 @@ func BenchmarkErrorFormat(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			err := FE3().(*Err)
-			_ = err.Error()
+			err.Error() //nolint
 		}
 		b.StopTimer()
 	})
@@ -169,11 +158,6 @@ func BenchmarkFormatting(b *testing.B) {
 		str := strconv.Itoa(depth)
 		mErrCache["pkg."+str] = pkgErrs
 		mErrCache["lxt."+str] = pkgErrs
-	}
-
-	type run struct {
-		funcName string //函数名字
-		f        func() //调用方法
 	}
 
 	for _, depth := range depths {
@@ -199,7 +183,6 @@ func BenchmarkFormatting(b *testing.B) {
 			b.StopTimer()
 		})
 
-		Layout = LayoutTypeText
 		name = fmt.Sprintf("%s-%d", "lxtNew.text", depth)
 		b.Run(name, func(b *testing.B) {
 			errs := mErrCache["lxt."+strconv.Itoa(depth)]
@@ -211,14 +194,13 @@ func BenchmarkFormatting(b *testing.B) {
 			b.StopTimer()
 		})
 
-		Layout = LayoutTypeJSON
 		name = fmt.Sprintf("%s-%d", "lxtNew.json", depth)
 		b.Run(name, func(b *testing.B) {
 			errs := mErrCache["lxt."+strconv.Itoa(depth)]
 			b.ReportAllocs()
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
-				fmt.Sprintf("%v", errs[i%len(errs)])
+				json.Marshal(errs[i%len(errs)]) //nolint
 			}
 			b.StopTimer()
 		})
@@ -226,7 +208,6 @@ func BenchmarkFormatting(b *testing.B) {
 }
 
 func BenchmarkNewAndFormatting(b *testing.B) {
-	Layout = LayoutTypeText //LayoutTypeJSON
 	type run struct {
 		funcName string                //函数名字
 		f        func(depth int) error //调用方法
@@ -262,7 +243,7 @@ func BenchmarkNewAndFormatting(b *testing.B) {
 }
 
 func FE1() error {
-	err := NewErr(1600002, "card status error 2", "status can not modify 2")
+	err := NewErr(1600002, "card status error 2")
 	return err
 }
 

@@ -5,11 +5,11 @@ import (
 )
 
 var (
-	bizErr1 = NewErr(111, "msg1", "trace1")
+	bizErr1 = NewErr(111, "msg1")
 )
 
 func getBizErr() error {
-	return NewErr(88, "msg", "trace")
+	return NewErr(88, "msg")
 }
 
 func testCatchErr() (errRet error) {

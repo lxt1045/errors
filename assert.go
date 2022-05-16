@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"fmt"
 	"reflect"
 )
 
@@ -8,20 +9,15 @@ type RPCErr interface {
 	GetBizStatusCode() int32     // 获取业务的状态码
 	GetBizStatusMessage() string // 获取业务的状态信息
 }
-type FrameErr interface {
+type TraceErr interface {
 	GetErrorCode() int // 获取框架的错误码
 }
-
-const (
-	DefaultCode = -1
-	DefaultMsg  = ""
-)
 
 func Must(ok bool) {
 	if ok {
 		return
 	}
-	throwErr(1, newErr(1, -1, "not ok"))
+	throwErr(1, NewErrSkip(1, -1, "not ok"))
 }
 
 func MustNilErr(err error) {
@@ -31,15 +27,12 @@ func MustNilErr(err error) {
 	throwErr(1, err)
 }
 
-func MustNil(obj interface{}, bizErr BizErr) {
+func MustNil(obj interface{}, bizErr Error) {
 	if IsNil(obj) {
 		return
 	}
 	if bizErr != nil {
-		if err, ok := bizErr.(*Err); ok {
-			bizErr = err.clone(1, "") // 重建调用栈
-		}
-		throwErr(1, bizErr)
+		throwErr(1, CloneSkip(1, bizErr)) // 重建调用栈)
 	}
 	err, ok := obj.(error)
 	if !ok {
@@ -52,14 +45,14 @@ func throwErr(skip int, err error) {
 	if traceErr, ok := err.(*Err); ok {
 		panic(traceErr) //重新生成调用栈
 	}
-	if bizErr, ok := err.(BizErr); ok {
+	if bizErr, ok := err.(Error); ok {
 		panic(bizErr)
 	}
 	if rpcErr, ok := err.(RPCErr); ok {
-		panic(newErr(skip+1, int(rpcErr.GetBizStatusCode()), rpcErr.GetBizStatusMessage()))
+		panic(NewErrSkip(skip+1, int(rpcErr.GetBizStatusCode()), rpcErr.GetBizStatusMessage()))
 	}
-	if frameErr, ok := err.(FrameErr); ok {
-		panic(newErr(skip+1, frameErr.GetErrorCode(), err.Error()))
+	if traceErr, ok := err.(TraceErr); ok {
+		panic(NewErrSkip(skip+1, traceErr.GetErrorCode(), err.Error()))
 	}
 	panic(newErrf(skip+1, DefaultCode, "%+v", err))
 }
@@ -85,7 +78,7 @@ func IsNil(object interface{}) bool {
 	}
 }
 
-func TryCatch(fCatch func(err BizErr)) (deferFunc func()) {
+func TryCatch(fCatch func(err Error)) (deferFunc func()) {
 	if fCatch == nil {
 		panic("errors.TryCatch(fCatch), fCatch==nil")
 	}
@@ -94,7 +87,7 @@ func TryCatch(fCatch func(err BizErr)) (deferFunc func()) {
 		if err == nil {
 			return
 		}
-		if bizErr, ok := err.(BizErr); ok {
+		if bizErr, ok := err.(Error); ok {
 			fCatch(bizErr)
 			return
 		}
@@ -120,5 +113,14 @@ func TryCatchErr(perr *error) (deferFunc func()) {
 
 		//其他错误则再次抛出
 		panic(perr)
+	}
+}
+
+func newErrf(skip, code int, format string, a ...interface{}) Error {
+	msg := fmt.Sprintf(format, a...)
+	return &Err{
+		Code:  code,
+		Msg:   msg,
+		cause: buildStack(1 + skip),
 	}
 }

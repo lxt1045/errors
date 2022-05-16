@@ -10,8 +10,8 @@ import (
 // go tool pprof ./errors.test cpu.prof
 // web
 func BenchmarkTryCatch(b *testing.B) {
-	bizErr1 := NewErr(11, "msg1", "trace1")
-	bizErr := NewErr(88, "msg", "trace")
+	bizErr1 := NewErr(11, "msg1")
+	bizErr := NewErr(88, "msg")
 	fNilErr := func() error {
 		return nil
 	}
@@ -38,7 +38,7 @@ func BenchmarkTryCatch(b *testing.B) {
 		return nil
 	}
 	tryCatch := func(fErr func() error) (errRet error) {
-		defer TryCatch(func(err BizErr) {
+		defer TryCatch(func(err Error) {
 			errRet = bizErr
 		})()
 		err := fErr()
@@ -69,7 +69,7 @@ func BenchmarkTryCatch(b *testing.B) {
 			b.Run(name, func(b *testing.B) {
 				b.ReportAllocs()
 				for i := 0; i < b.N; i++ {
-					r.f(fError.f)
+					_ = r.f(fError.f)
 				}
 				b.StopTimer()
 			})

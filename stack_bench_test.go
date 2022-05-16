@@ -24,11 +24,11 @@ func BenchmarkNewStack(b *testing.B) {
 		return
 	}
 	newDepthStack := func(skip, depth int) {
-		newStack(skip+1, depth)
+		buildStack(skip + 1)
 		return
 	}
 	newDepthErr := func(skip, depth int) {
-		NewErr(0, "ssss", "")
+		NewErr(0, "ssss") //nolint
 		return
 	}
 	runs := []run{
