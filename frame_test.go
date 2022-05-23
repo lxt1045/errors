@@ -108,6 +108,15 @@ func Benchmark_frame_parse(b *testing.B) {
 			f, _ := runtime.CallersFrames(s[:]).Next()
 			_ = toCaller(f)
 		}, nil},
+		{"FuncForPC", func(s frame) {
+			f := runtime.FuncForPC(s[0])
+			file, line := f.FileLine(s[0])
+			_ = toCaller(runtime.Frame{
+				File:     file,
+				Line:     line,
+				Function: f.Name(),
+			})
+		}, nil},
 	}
 
 	for _, r := range runs {
@@ -156,4 +165,23 @@ func BenchmarkFrameMarshal(b *testing.B) {
 		}
 		b.StopTimer()
 	})
+}
+
+func TestRuntimeCaller(t *testing.T) {
+	t.Run("block", func(t *testing.T) {
+		s := buildStack(0)
+		traces, more, f := runtime.CallersFrames(s.pcCache[:s.npc]), true, runtime.Frame{}
+		for more {
+			f, more = traces.Next()
+			t.Logf("%+v", f)
+		}
+		for _, pc := range s.pcCache[:s.npc] {
+			f := runtime.FuncForPC(pc)
+			file, line := f.FileLine(pc)
+			t.Logf("Entry:%+v, Name:%+v, File:%+v, Line:%+v", f.Entry(), f.Name(), file, line)
+			file, line = f.FileLine(f.Entry())
+			t.Logf("Entry:%+v, Name:%+v, File:%+v, Line:%+v", f.Entry(), f.Name(), file, line)
+		}
+	})
+
 }

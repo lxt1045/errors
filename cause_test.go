@@ -44,15 +44,15 @@ func Test_Err(t *testing.T) {
 		assert.Equal(t, bs1, bs2)
 
 		st := struct {
-			Code  int     `json:"code"`
-			Msg   string  `json:"msg"`
-			Stack callers `json:"stack"`
+			Code  int      `json:"code"`
+			Msg   string   `json:"msg"`
+			Stack fmtStack `json:"stack"`
 		}{}
 		err = json.Unmarshal(bs1, &st)
 		assert.Nil(t, err)
 		assert.Equal(t, s.msg, st.Msg)
 		assert.Equal(t, s.code, st.Code)
-		assert.Equal(t, s.stack.Callers(), st.Stack)
+		assert.Equal(t, s.stack.fmt(), st.Stack)
 	})
 
 	t.Run("Error", func(t *testing.T) {

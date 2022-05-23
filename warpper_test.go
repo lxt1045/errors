@@ -51,6 +51,23 @@ func BenchmarkWrap(b *testing.B) {
 	}
 }
 
+func BenchmarkMapGet(b *testing.B) {
+	N := 6
+	for x, n := 0, 1; x < N; x++ {
+		n = 10 * n
+		stdMap := NewM(n)
+		b.Run(fmt.Sprintf("stdMap-%d", n), func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				k := i % n
+				_ = stdMap.m[k]
+			}
+			b.StopTimer()
+		})
+
+	}
+}
+
 type M struct {
 	sync.RWMutex
 	m map[int]int

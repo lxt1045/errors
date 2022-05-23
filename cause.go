@@ -57,7 +57,7 @@ func (e *Cause) fmt() (cs fmtCause) {
 type fmtCause struct {
 	code       string
 	msg        string
-	stackCache callers
+	stackCache fmtStack
 }
 
 func (f *fmtCause) jsonSize() int {

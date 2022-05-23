@@ -62,7 +62,7 @@ func Test_stack(t *testing.T) {
 		npc, s := runtime.Callers(baseSkip, pcs[:]), buildStack(0)
 		assert.Equal(t, npc, s.npc)
 
-		callers := s.Callers()
+		callers := s.fmt()
 		for i, caller := range callers {
 			f, _ := runtime.CallersFrames([]uintptr{pcs[i]}).Next()
 			c := toCaller(f)
@@ -72,8 +72,8 @@ func Test_stack(t *testing.T) {
 
 	t.Run("stack.parse", func(t *testing.T) {
 		s := buildStack(0)
-		callers := s.Callers()
-		cacheCallers := s.Callers()
+		callers := s.fmt()
+		cacheCallers := s.fmt()
 		assert.Equal(t, callers, cacheCallers)
 	})
 
@@ -82,7 +82,7 @@ func Test_stack(t *testing.T) {
 		npc, s := runtime.Callers(baseSkip, pcs[:]), buildStack(0)
 		assert.Equal(t, npc, s.npc)
 
-		for i, caller := range s.Callers() {
+		for i, caller := range s.fmt() {
 			f, _ := runtime.CallersFrames([]uintptr{pcs[i]}).Next()
 			c := toCaller(f)
 			assert.Equal(t, caller, c.String())
@@ -97,11 +97,11 @@ func Test_stack(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, bs1, bs2)
 
-		st := callers{}
+		st := fmtStack{}
 		err = json.Unmarshal(bs1, &st)
 		assert.Nil(t, err)
 		assert.NotEqual(t, len(st), 0)
-		assert.Equal(t, s.Callers(), st)
+		assert.Equal(t, s.fmt(), st)
 	})
 
 	t.Run("stack.String", func(t *testing.T) {
@@ -228,7 +228,7 @@ func Benchmark_Callers(b *testing.B) {
 		stacks   []stack
 	}{
 		{"s.Callers", func(s *stack) {
-			s.Callers()
+			s.fmt()
 		}, nil},
 		{"parseStack", func(s *stack) {
 			parseStack(s.pcCache[:s.npc])

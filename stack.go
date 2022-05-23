@@ -40,23 +40,7 @@ func buildStack(skip int) (s stack) {
 	return
 }
 
-func (s *stack) Callers() (cs callers) {
-	ok := false
-	mStacksLock.RLock()
-	cs, ok = mStacks[s.pcCache]
-	mStacksLock.RUnlock()
-	if ok {
-		return
-	}
-
-	cs = parseStack(s.pcCache[:s.npc]) // 这步放在Lock()外虽然可能会造成重复计算,但是极大减少了锁争抢
-	mStacksLock.Lock()
-	mStacks[s.pcCache] = cs
-	mStacksLock.Unlock()
-	return
-}
-
-func parseStack(pcs []uintptr) (cs callers) {
+func parseStack(pcs []uintptr) (cs fmtStack) {
 	traces, more, f := runtime.CallersFrames(pcs), true, runtime.Frame{}
 	for more {
 		f, more = traces.Next()
@@ -73,25 +57,38 @@ func parseStack(pcs []uintptr) (cs callers) {
 }
 
 func (s *stack) MarshalJSON() (bs []byte, err error) {
-	cs := s.Callers()
+	cs := s.fmt()
 	bs = make([]byte, 0, cs.jsonSize())
 	bs = cs.json(bs)
 	return
 }
 
 func (s *stack) String() string {
-	cs := s.Callers()
+	cs := s.fmt()
 	bs := make([]byte, 0, cs.textSize())
 	bs = cs.text(bs)
 	return *(*string)(unsafe.Pointer(&bs))
 }
-func (s *stack) fmt() (cs callers) {
-	return s.Callers()
+
+func (s *stack) fmt() (cs fmtStack) {
+	ok := false
+	mStacksLock.RLock()
+	cs, ok = mStacks[s.pcCache]
+	mStacksLock.RUnlock()
+	if ok {
+		return
+	}
+
+	cs = parseStack(s.pcCache[:s.npc]) // 这步放在Lock()外虽然可能会造成重复计算,但是极大减少了锁争抢
+	mStacksLock.Lock()
+	mStacks[s.pcCache] = cs
+	mStacksLock.Unlock()
+	return
 }
 
-type callers []string
+type fmtStack []string
 
-func (cs *callers) jsonSize() (l int) {
+func (cs *fmtStack) jsonSize() (l int) {
 	if len(*cs) == 0 {
 		return
 	}
@@ -102,7 +99,7 @@ func (cs *callers) jsonSize() (l int) {
 	return
 }
 
-func (cs *callers) textSize() (l int) {
+func (cs *fmtStack) textSize() (l int) {
 	if len(*cs) == 0 {
 		return
 	}
@@ -113,7 +110,7 @@ func (cs *callers) textSize() (l int) {
 	return
 }
 
-func (cs *callers) json(bs []byte) []byte {
+func (cs *fmtStack) json(bs []byte) []byte {
 	bs = append(bs, '[')
 	for i, str := range *cs {
 		if i != 0 {
@@ -127,7 +124,7 @@ func (cs *callers) json(bs []byte) []byte {
 	return bs
 }
 
-func (cs *callers) text(bs []byte) []byte {
+func (cs *fmtStack) text(bs []byte) []byte {
 	for i, str := range *cs {
 		if i != 0 {
 			bs = append(bs, ", \n"...)
