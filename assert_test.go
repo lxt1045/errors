@@ -1,37 +1,299 @@
 package errors
 
 import (
+	"errors"
+	"fmt"
+	"runtime"
+	"sync"
 	"testing"
+
+	pkgerrs "github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
-var (
-	bizErr1 = NewErr(111, "msg1")
-)
+func Test_Assert(t *testing.T) {
+	err := NewErrSkip(0, errCode, errMsg)
 
-func getBizErr() error {
-	return NewErr(88, "msg")
+	t.Run("OK", func(t *testing.T) {
+		OK(true, nil)
+	})
+
+	t.Run("!OK", func(t *testing.T) {
+		defer TryByFunc(func(e interface{}) (ok bool) {
+			err1 := e.(*Cause)
+			assert.Equal(t, err.Code, err1.Code)
+			assert.Equal(t, err.Msg, err1.Msg)
+			return true
+		})
+		OK(false, err)
+	})
+
+	t.Run("!OK", func(t *testing.T) {
+		defer TryByFunc(func(e interface{}) (ok bool) {
+			err1 := e.(*Cause)
+			assert.Equal(t, DefaultCode, err1.Code)
+			return true
+		})
+		OK(false, nil)
+	})
+
+	t.Run("NilErr", func(t *testing.T) {
+		NilErr(nil)
+		var err error
+		NilErr(err)
+	})
+
+	t.Run("!NilErr", func(t *testing.T) {
+		defer TryByFunc(func(e interface{}) (ok bool) {
+			err1 := e.(*Cause)
+			assert.Equal(t, err.Code, err1.Code)
+			return true
+		})
+		NilErr(err)
+	})
+
+	t.Run("!NilErr", func(t *testing.T) {
+		defer TryByFunc(func(e interface{}) (ok bool) {
+			err1 := e.(*Cause)
+			assert.Equal(t, DefaultCode, err1.Code)
+			assert.Equal(t, errMsg, err1.Msg)
+			return true
+		})
+		NilErr(errors.New(errMsg))
+	})
+
+	t.Run("!NilErr.pkg", func(t *testing.T) {
+		pkgErr := pkgerrs.New(errMsg)
+		defer TryByFunc(func(e interface{}) (ok bool) {
+			err1 := e.(*Cause)
+			assert.Equal(t, DefaultCode, err1.Code)
+			assert.Equal(t, fmt.Sprintf("%+v", pkgErr), err1.Msg)
+			return true
+		})
+		NilErr(pkgErr)
+	})
+
+	t.Run("Nil", func(t *testing.T) {
+		Nil(nil, err)
+		var err1 error
+		Nil(err1, err)
+	})
+
+	t.Run("!Nil", func(t *testing.T) {
+		defer TryByFunc(func(e interface{}) (ok bool) {
+			err1 := e.(*Cause)
+			assert.Equal(t, err.Code, err1.Code)
+			assert.Equal(t, err.Msg, err1.Msg)
+			return true
+		})
+		Nil(err, err)
+	})
+
+	t.Run("!Nil", func(t *testing.T) {
+		defer TryByFunc(func(e interface{}) (ok bool) {
+			err1 := e.(*Cause)
+			assert.Equal(t, DefaultCode, err1.Code)
+			assert.NotEqual(t, errMsg, err1.Msg)
+			return true
+		})
+		Nil(err, nil)
+	})
+
+	t.Run("!Nilf", func(t *testing.T) {
+		defer TryByFunc(func(e interface{}) (ok bool) {
+			err1 := e.(*Cause)
+			assert.Equal(t, errCode, err1.Code)
+			assert.Equal(t, errMsg, err1.Msg)
+			return true
+		})
+		Nilf(err, errCode, errMsg)
+	})
+
+	t.Run("IsNil", func(t *testing.T) {
+		assert.True(t, IsNil(nil))
+		assert.False(t, IsNil(interface{}("")))
+		assert.True(t, IsNil(chan int(nil)))
+
+		nilErr := error((*Cause)(nil))
+		assert.False(t, nil == nilErr)
+		assert.True(t, IsNil(nilErr))
+	})
+
+	t.Run("TryByFunc", func(t *testing.T) {
+		defer TryByFunc(func(e interface{}) (ok bool) {
+			err1, ok := e.(*Cause)
+			assert.Equal(t, err.Code, err1.Code)
+			assert.Equal(t, err.Msg, err1.Msg)
+			return
+		})
+		err = err
+		NilErr(err)
+	})
+
+	t.Run("TryByFunc.nil", func(t *testing.T) {
+		defer TryByFunc(func(e interface{}) (ok bool) {
+			assert.Fail(t, "may not in here")
+			return false
+		})
+		NilErr(nil)
+	})
+
+	t.Run("TryByFunc.panic", func(t *testing.T) {
+		assert.Panics(t, func() {
+			defer TryByFunc(func(e interface{}) (ok bool) {
+				return false
+			})
+			NilErr(err)
+		})
+	})
+
+	t.Run("TryErr", func(t *testing.T) {
+		e1 := func() (e error) {
+			defer TryErr(&e)
+			NilErr(err)
+			return
+		}()
+		err1 := e1.(*Cause)
+		assert.Equal(t, err.Code, err1.Code)
+		assert.Equal(t, err.Msg, err1.Msg)
+		return
+	})
+
+	t.Run("TryErr.nil", func(t *testing.T) {
+		e1 := func() (e error) {
+			defer TryErr(&e)
+			NilErr(nil)
+			return
+		}()
+		assert.Nil(t, e1)
+	})
+
+	t.Run("TryErr.panic", func(t *testing.T) {
+		assert.Panics(t, func() {
+			var e error
+			defer TryErr(&e)
+			panic("")
+		})
+	})
+
+	t.Run("TryErr.panic", func(t *testing.T) {
+		assert.Panics(t, func() {
+			var e error
+			defer TryErr(&e)
+			x := 0
+			_ = 11 / x
+			return
+		})
+	})
 }
 
-func testCatchErr() (errRet error) {
-	defer TryCatchErr(&errRet)()
+// go test -benchmem -run=^$ -bench "^(BenchmarkTry)$" github.com/lxt1045/errors -count=1 -v -cpuprofile cpu.prof -c
+// go tool pprof ./errors.test cpu.prof
+// web
+func BenchmarkTry(b *testing.B) {
+	errNotNil := NewErr(errCode, errMsg)
 
-	err := getBizErr()
-	MustNil(err, bizErr1)
-	return
+	type run struct {
+		funcName string       //函数名字
+		f        func() error //调用方法
+	}
+
+	runs := []run{
+		{"ifErr.nil", func() (err error) {
+			if err == nil {
+				return err
+			}
+			return nil
+		}},
+		{"ifErr.not-nil", func() (err error) {
+			err = errNotNil
+			if err == nil {
+				return err
+			}
+			return nil
+		}},
+		{"defer", func() (err error) {
+			defer func() {}()
+			return
+		}},
+		{"perr", func() (err error) {
+			defer func(perr *error) {
+				*perr = nil
+			}(&err)
+			return
+		}},
+		{"TryByFunc.nil", func() (err error) {
+			defer TryByFunc(func(e interface{}) (ok bool) {
+				err, ok = e.(*Cause)
+				return
+			})
+			NilErr(err)
+			return
+		}},
+		{"TryByFunc.not-nil", func() (err error) {
+			defer TryByFunc(func(e interface{}) (ok bool) {
+				err, ok = e.(*Cause)
+				return
+			})
+			err = errNotNil
+			NilErr(err)
+			return
+		}},
+		{"TryErr.nil", func() (err error) {
+			defer TryErr(&err)
+			NilErr(err)
+			return
+		}},
+		{"TryErr.noy-nil", func() (err error) {
+			defer TryErr(&err)
+			err = errNotNil
+			NilErr(err)
+			return
+		}},
+	}
+
+	for _, r := range runs {
+		name := fmt.Sprintf("%s", r.funcName)
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				err := r.f()
+				_ = err
+				// fmt.Sprint(err)
+			}
+			b.StopTimer()
+		})
+	}
 }
 
-func testCatchErr1() (errRet error) {
-	defer TryCatchErr(&errRet)()
+func TestTry(t *testing.T) {
+	Print := func(n int) {
+		s := buildStack(1)
+		fmt.Printf("%d:\n", n)
+		for i := 0; i < s.npc; i++ {
+			f, _ := runtime.CallersFrames(s.pcCache[i : i+1]).Next()
+			c := toCaller(f).String()
+			fmt.Printf("%d: %s\n", s.pcCache[i], c)
+		}
+	}
+	Print(1)
+	func() {
+		Print(2)
+		func() {
+			Print(3)
+		}()
+		//
+		//
+		Print(4)
+	}()
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		func() {
+			Print(5)
+		}()
+	}()
+	wg.Wait()
 
-	err := getBizErr()
-	MustNilErr(err)
-	return
-}
-
-func TestTryCatch(t *testing.T) {
-	err := testCatchErr()
-	t.Logf("testCatchErr:%+v", err)
-
-	err = testCatchErr1()
-	t.Logf("testCatchErr1:%+v", err)
 }

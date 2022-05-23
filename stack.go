@@ -2,7 +2,6 @@ package errors
 
 import (
 	"bytes"
-	"os"
 	"runtime"
 	"strings"
 	"sync"
@@ -16,120 +15,100 @@ const (
 )
 
 var (
-	rootDirs      = []string{"src", "/pkg/mod/"} // file 会从rootDir开始截断
-	pathSeparator = string([]byte{os.PathSeparator})
-
-	// skipPkgs里的pkg会被忽略
-	skipPkgs = []string{
-		"github.com/cloudwego/kitex",
-	}
-
 	// 调用栈名字的缓存
-	mCallers     = make(map[[DefaultDepth]uintptr][]caller)
-	mCallersLock sync.RWMutex
+	mStacks     = make(map[[DefaultDepth]uintptr][]string)
+	mStacksLock sync.RWMutex
 )
 
 // 用于描述调用栈
 type stack struct {
-	nrpc     int                   // runtime 的调用栈
-	rpcCache [DefaultDepth]uintptr // runtime 的调用栈缓存,避免一次内存分配
-	callers  []caller              // 解析后的缓存
+	npc     int                   // runtime 的调用栈
+	pcCache [DefaultDepth]uintptr // runtime 的调用栈缓存,避免一次内存分配
 }
 
 // NewStack 锚定调用栈
-func NewStack(skip, depth int) *stack { //nolint
-	s := buildStack(skip + 1)
-	if depth > 0 && depth < s.nrpc {
-		s.nrpc = depth
+func NewStack(skip int, depths ...int) (s *stack) { //nolint
+	depth := DefaultDepth
+	if len(depths) > 0 && depths[0] > 0 && depths[0] < DefaultDepth {
+		depth = depths[0]
 	}
-	return &s
+	s = &stack{}
+	s.npc = runtime.Callers(skip+1+baseSkip, s.pcCache[:depth])
+	return
 }
 
 func buildStack(skip int) (s stack) {
-	s.nrpc = runtime.Callers(skip+1+baseSkip, s.rpcCache[:]) //nolint
+	s.npc = runtime.Callers(skip+1+baseSkip, s.pcCache[:])
 	return
 }
 
 func (s *stack) Callers() (callers []string) {
-	s.parse()
-	for _, c := range s.callers {
-		callers = append(callers, c.String())
-	}
-	return
-}
-
-func (s *stack) parse() {
-	if len(s.callers) > 0 {
-		return
-	}
-	mCallersLock.RLock()
 	ok := false
-	s.callers, ok = mCallers[s.rpcCache]
-	mCallersLock.RUnlock()
+	mStacksLock.RLock()
+	callers, ok = mStacks[s.pcCache]
+	mStacksLock.RUnlock()
 	if ok {
 		return
 	}
 
-	s.parseSlow() // 这步放在Lock()外虽然可能会造成重复计算,但是极大减少了锁争抢
-	mCallersLock.Lock()
-	if _, ok := mCallers[s.rpcCache]; !ok {
-		mCallers[s.rpcCache] = s.callers
-	}
-	mCallersLock.Unlock()
+	callers = parse(s.pcCache[:s.npc]) // 这步放在Lock()外虽然可能会造成重复计算,但是极大减少了锁争抢
+	mStacksLock.Lock()
+	mStacks[s.pcCache] = callers
+	mStacksLock.Unlock()
+	return
 }
 
-func (s *stack) parseSlow() {
-	traces, more, f := runtime.CallersFrames(s.rpcCache[:s.nrpc]), true, runtime.Frame{}
+func parse(pcs []uintptr) (callers []string) {
+	traces, more, f := runtime.CallersFrames(pcs), true, runtime.Frame{}
 	for more {
 		f, more = traces.Next()
-		if skipFunc(f.Function) && len(s.callers) > 0 {
+		c := toCaller(f)
+		if skipFile(c.File) && len(callers) > 0 {
 			break
 		}
-		s.callers = append(s.callers, toCaller(f))
-		if strings.HasSuffix(f.Function, "main.main") && len(s.callers) > 0 {
+		callers = append(callers, c.String())
+		if strings.HasSuffix(f.Function, "main.main") && len(callers) > 0 {
 			break
 		}
 	}
-	if len(s.callers) == 0 {
-		s.callers = []caller{{File: "nil", FuncName: "nil"}}
-	}
+	return
 }
 
 func (s *stack) json(buf *bytes.Buffer) {
 	callers := s.Callers()
-	buf.Write([]byte(`[`))
+	buf.WriteString(`[`)
 	for i, caller := range callers {
 		if i != 0 {
-			buf.Write([]byte(","))
+			buf.WriteString(",")
 		}
 		buf.WriteByte('"')
 		buf.WriteString(caller)
 		buf.WriteByte('"')
 	}
-	buf.Write([]byte("]"))
+	buf.WriteString("]")
 }
 
 func (s *stack) text(buf *bytes.Buffer) {
 	callers := s.Callers()
 	for i, caller := range callers {
 		if i != 0 {
-			buf.Write([]byte(", \n"))
+			buf.WriteString(", \n")
 		}
-		buf.Write([]byte("    "))
+		buf.WriteString("    ")
 		buf.WriteString(caller)
 	}
 }
 
 func (s *stack) MarshalJSON() ([]byte, error) {
-	buf := bytes.NewBuffer(nil)
-	buf.Write([]byte(`{"stack":`))
+	buf := bytes.NewBuffer(make([]byte, 0, 512))
+	buf.WriteString(`{"stack":`)
 	s.json(buf)
-	buf.Write([]byte("}"))
+	buf.WriteString("}")
 	return buf.Bytes(), nil
 }
 
 func (s *stack) String() string {
-	buf := bytes.NewBuffer(nil)
+	buf := bytes.NewBuffer(make([]byte, 0, 512))
 	s.text(buf)
 	return bufToString(buf)
 }

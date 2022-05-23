@@ -4,7 +4,7 @@
 
 1、记录报错现场的调用栈  
 2、报错后，返回路径上可以添加额外的日志信息，但是不会记录该位置的调用栈，只会记录添加信息位置的函数信息  
-3、在最终处理错误的地方打印错误信息，err.Err()返回json格式日志信息  
+3、在最终处理错误的地方打印错误信息，err.Cause()返回json格式日志信息  
   
 
 ## 使用方式
@@ -34,13 +34,13 @@ if x,err:=pkg.DoFunc(x,y){
 x,err:=pkg.DoFunc(x,y)
 if err!=nil {
     err = errors.Trace(err, errors.Fields("x", x, "y", y))
-    log.Warn(err.Err())
+    log.Warn(err.Cause())
     return err
 }
 ```
 
 4、日志输出内容：   
-err.Err() 会返回一个json字符串，包含一下信息：
+err.Cause() 会返回一个json字符串，包含一下信息：
 ```json
 {
     "code": 21200017,
