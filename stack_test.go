@@ -23,7 +23,7 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
-func F1() *stack {
+func F1() *stack { //nolint
 	return NewStack(0, 0)
 }
 
@@ -31,13 +31,16 @@ func Test_NewStack(t *testing.T) {
 	F := func() *stack {
 		return F1()
 	}
+
 	s := F()
-	fmt.Println(s)
+
+	_ = s.String()
+	t.Log("\n", s)
 	bs, err := json.MarshalIndent(s, "", "    ")
 	if err != nil {
 		t.Fatal(err)
 	}
-	fmt.Println(string(bs))
+	t.Log("MarshalIndent:", string(bs))
 
 }
 
@@ -94,13 +97,11 @@ func Test_stack(t *testing.T) {
 		assert.Nil(t, err)
 		assert.Equal(t, bs1, bs2)
 
-		st := struct {
-			Stack []string `json:"stack"`
-		}{}
+		st := callers{}
 		err = json.Unmarshal(bs1, &st)
 		assert.Nil(t, err)
-		assert.NotEqual(t, len(st.Stack), 0)
-		assert.Equal(t, s.Callers(), st.Stack)
+		assert.NotEqual(t, len(st), 0)
+		assert.Equal(t, s.Callers(), st)
 	})
 
 	t.Run("stack.String", func(t *testing.T) {
@@ -180,7 +181,7 @@ func BenchmarkNewStack(b *testing.B) {
 			buildStack(1)
 		}},
 		{"lxt.NewErr", func() {
-			NewErr(0, "")
+			_ = NewErr(0, "")
 		}},
 	}
 	for _, r := range runs {
@@ -229,8 +230,8 @@ func Benchmark_Callers(b *testing.B) {
 		{"s.Callers", func(s *stack) {
 			s.Callers()
 		}, nil},
-		{"parse", func(s *stack) {
-			parse(s.pcCache[:s.npc])
+		{"parseStack", func(s *stack) {
+			parseStack(s.pcCache[:s.npc])
 		}, nil},
 	}
 
@@ -274,6 +275,7 @@ func equalCaller(expected, actual uintptr) bool {
 }
 
 func equalStack(t *testing.T, expected, actual []uintptr) bool {
+	_ = t
 	if len(expected) != len(actual) {
 		return false
 	}
@@ -288,14 +290,30 @@ func equalStack(t *testing.T, expected, actual []uintptr) bool {
 	return true
 }
 
-func BenchmarkStckString(b *testing.B) {
+func BenchmarkStackMarshal(b *testing.B) {
 	s := buildStack(0)
 
-	b.Run("String1", func(b *testing.B) {
+	b.Run("String", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			_ = s.String()
+		}
+		b.StopTimer()
+	})
+	b.Run("MarshalJSON", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, _ = s.MarshalJSON()
+		}
+		b.StopTimer()
+	})
+	b.Run("json.Marshal", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, _ = json.Marshal(s)
 		}
 		b.StopTimer()
 	})

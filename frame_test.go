@@ -1,6 +1,7 @@
 package errors
 
 import (
+	"encoding/json"
 	"fmt"
 	"runtime"
 	"testing"
@@ -29,7 +30,17 @@ func Test_Frame(t *testing.T) {
 
 func Test_NewFrame(t *testing.T) {
 	s := NewFrame(0)
-	fmt.Println(s.String())
+	t.Log(s.String())
+	bs, err := s.MarshalJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(string(bs))
+	bs, err = json.Marshal(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Log(string(bs))
 }
 
 func BenchmarkNewFrame(b *testing.B) {
@@ -42,24 +53,19 @@ func BenchmarkNewFrame(b *testing.B) {
 	runtimeCaller1 := func(skip, depth int) {
 		pc := [1]uintptr{}
 		runtime.Callers(skip+3, pc[:])
-		return
 	}
 	runtimeCaller16 := func(skip, depth int) {
 		pc := [32]uintptr{}
 		runtime.Callers(skip+3, pc[:])
-		return
 	}
 	NewFrame := func(skip, depth int) {
 		NewFrame(skip + 1)
-		return
 	}
 	buildStack := func(skip, depth int) {
 		buildStack(skip + 1)
-		return
 	}
 	newDepthErr := func(skip, depth int) {
-		NewErr(0, "ssss") //nolint
-		return
+		_ = NewErr(0, "ssss")
 	}
 	runs := []run{
 		{1, "runtimeCaller", runtimeCaller1},
@@ -121,4 +127,33 @@ func Benchmark_frame_parse(b *testing.B) {
 			b.StopTimer()
 		})
 	}
+}
+
+func BenchmarkFrameMarshal(b *testing.B) {
+	s := buildFrame(0)
+
+	b.Run("String", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_ = s.String()
+		}
+		b.StopTimer()
+	})
+	b.Run("MarshalJSON", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, _ = s.MarshalJSON()
+		}
+		b.StopTimer()
+	})
+	b.Run("json.Marshal", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			_, _ = json.Marshal(s)
+		}
+		b.StopTimer()
+	})
 }

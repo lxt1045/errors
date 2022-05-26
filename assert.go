@@ -21,8 +21,8 @@ func OK(ok bool, err *Cause) {
 		panic(err) //重新生成调用栈
 	}
 	panic(&Cause{
-		Code:  DefaultCode,
-		Msg:   "not ok",
+		code:  DefaultCode,
+		msg:   "not ok",
 		stack: buildStack(1),
 	})
 }
@@ -46,8 +46,8 @@ func Nil(obj interface{}, err *Cause) {
 		panic(err) //重新生成调用栈
 	}
 	panic(&Cause{
-		Code:  DefaultCode,
-		Msg:   "not nil",
+		code:  DefaultCode,
+		msg:   "not nil",
 		stack: buildStack(1),
 	})
 }
@@ -57,8 +57,8 @@ func Nilf(obj interface{}, code int, format string, a ...interface{}) {
 		return
 	}
 	panic(&Cause{
-		Code:  code,
-		Msg:   fmt.Sprintf(format, a...),
+		code:  code,
+		msg:   fmt.Sprintf(format, a...),
 		stack: buildStack(1),
 	})
 }

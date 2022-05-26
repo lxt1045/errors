@@ -1,29 +1,27 @@
 package errors
 
 import (
-	"bytes"
 	"runtime"
 	"strings"
 	"sync"
+	"unsafe"
 )
 
 const (
 	baseSkip = 1
 
 	// DefaultDepth 默认构建的调用栈深度
-	DefaultDepth = 32
+	DefaultDepth = 31
 )
 
 var (
-	// 调用栈名字的缓存
 	mStacks     = make(map[[DefaultDepth]uintptr][]string)
 	mStacksLock sync.RWMutex
 )
 
-// 用于描述调用栈
 type stack struct {
-	npc     int                   // runtime 的调用栈
-	pcCache [DefaultDepth]uintptr // runtime 的调用栈缓存,避免一次内存分配
+	pcCache [DefaultDepth]uintptr
+	npc     int
 }
 
 // NewStack 锚定调用栈
@@ -42,73 +40,100 @@ func buildStack(skip int) (s stack) {
 	return
 }
 
-func (s *stack) Callers() (callers []string) {
+func (s *stack) Callers() (cs callers) {
 	ok := false
 	mStacksLock.RLock()
-	callers, ok = mStacks[s.pcCache]
+	cs, ok = mStacks[s.pcCache]
 	mStacksLock.RUnlock()
 	if ok {
 		return
 	}
 
-	callers = parse(s.pcCache[:s.npc]) // 这步放在Lock()外虽然可能会造成重复计算,但是极大减少了锁争抢
+	cs = parseStack(s.pcCache[:s.npc]) // 这步放在Lock()外虽然可能会造成重复计算,但是极大减少了锁争抢
 	mStacksLock.Lock()
-	mStacks[s.pcCache] = callers
+	mStacks[s.pcCache] = cs
 	mStacksLock.Unlock()
 	return
 }
 
-func parse(pcs []uintptr) (callers []string) {
+func parseStack(pcs []uintptr) (cs callers) {
 	traces, more, f := runtime.CallersFrames(pcs), true, runtime.Frame{}
 	for more {
 		f, more = traces.Next()
 		c := toCaller(f)
-		if skipFile(c.File) && len(callers) > 0 {
+		if skipFile(c.File) && len(cs) > 0 {
 			break
 		}
-		callers = append(callers, c.String())
-		if strings.HasSuffix(f.Function, "main.main") && len(callers) > 0 {
+		cs = append(cs, c.String())
+		if strings.HasSuffix(f.Function, "main.main") && len(cs) > 0 {
 			break
 		}
 	}
 	return
 }
 
-func (s *stack) json(buf *bytes.Buffer) {
-	callers := s.Callers()
-	buf.WriteString(`[`)
-	for i, caller := range callers {
-		if i != 0 {
-			buf.WriteString(",")
-		}
-		buf.WriteByte('"')
-		buf.WriteString(caller)
-		buf.WriteByte('"')
-	}
-	buf.WriteString("]")
-}
-
-func (s *stack) text(buf *bytes.Buffer) {
-	callers := s.Callers()
-	for i, caller := range callers {
-		if i != 0 {
-			buf.WriteString(", \n")
-		}
-		buf.WriteString("    ")
-		buf.WriteString(caller)
-	}
-}
-
-func (s *stack) MarshalJSON() ([]byte, error) {
-	buf := bytes.NewBuffer(make([]byte, 0, 512))
-	buf.WriteString(`{"stack":`)
-	s.json(buf)
-	buf.WriteString("}")
-	return buf.Bytes(), nil
+func (s *stack) MarshalJSON() (bs []byte, err error) {
+	cs := s.Callers()
+	bs = make([]byte, 0, cs.jsonSize())
+	bs = cs.json(bs)
+	return
 }
 
 func (s *stack) String() string {
-	buf := bytes.NewBuffer(make([]byte, 0, 512))
-	s.text(buf)
-	return bufToString(buf)
+	cs := s.Callers()
+	bs := make([]byte, 0, cs.textSize())
+	bs = cs.text(bs)
+	return *(*string)(unsafe.Pointer(&bs))
+}
+func (s *stack) fmt() (cs callers) {
+	return s.Callers()
+}
+
+type callers []string
+
+func (cs *callers) jsonSize() (l int) {
+	if len(*cs) == 0 {
+		return
+	}
+	l = len(*cs)*3 + 2 - 1
+	for _, str := range *cs {
+		l += len(str)
+	}
+	return
+}
+
+func (cs *callers) textSize() (l int) {
+	if len(*cs) == 0 {
+		return
+	}
+	l = len(*cs)*7 - 3
+	for _, str := range *cs {
+		l += len(str)
+	}
+	return
+}
+
+func (cs *callers) json(bs []byte) []byte {
+	bs = append(bs, '[')
+	for i, str := range *cs {
+		if i != 0 {
+			bs = append(bs, ',')
+		}
+		bs = append(bs, '"')
+		bs = append(bs, str...)
+		bs = append(bs, '"')
+	}
+	bs = append(bs, ']')
+	return bs
+}
+
+func (cs *callers) text(bs []byte) []byte {
+	for i, str := range *cs {
+		if i != 0 {
+			bs = append(bs, ", \n"...)
+		}
+		bs = append(bs, "    "...)
+		bs = append(bs, str...)
+	}
+	return bs
 }

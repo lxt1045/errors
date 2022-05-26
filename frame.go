@@ -6,15 +6,13 @@ import (
 )
 
 var (
-	// 调用栈的缓存
 	mFrames    = make(map[uintptr]string)
 	mFuncsLock sync.RWMutex
 )
 
-// 用于描述调用栈
 type frame [1]uintptr
 
-func NewFrame(skips ...int) (s frame) {
+func NewFrame(skips ...int) (s frame) { //nolit
 	skip := 1 + baseSkip
 	if len(skips) > 0 {
 		skip += skips[0]
@@ -42,6 +40,18 @@ func parseFrame(pc uintptr) (c string) {
 	mFuncsLock.Lock()
 	mFrames[pc] = c
 	mFuncsLock.Unlock()
+	return
+}
+
+func (s frame) MarshalJSON() (bs []byte, err error) {
+	c := parseFrame(s[0])
+	h := `{"frame":"`
+	bs = make([]byte, 0, len(c)+2)
+	bs = append(bs, h...)
+	bs = append(bs, c...)
+	bs = append(bs, '"')
+	bs = append(bs, '}')
+
 	return
 }
 

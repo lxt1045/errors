@@ -12,8 +12,8 @@ const (
 
 type BizErr interface {
 	error
-	GetCode() int
-	GetMsg() string
+	Code() int
+	Message() string
 }
 type Error interface {
 	BizErr
@@ -27,7 +27,7 @@ var _ Error = &Cause{}
 //兼容 erors.IS?
 
 //New 用于替换 errors.New()
-func New(msg string) Error {
+func New(msg string) error {
 	return buildCause(DefaultCode, msg, buildStack(1))
 }
 
@@ -60,7 +60,7 @@ func CloneSkip(skip int, err error) *Cause {
 	return as(err, buildStack(1+skip))
 }
 
-//Clone 利用 err.Code 和 Cause.Msg 生成一个包含当前stack的新Error,
+//Clone 利用 err.code 和 Cause.msg 生成一个包含当前stack的新Error,
 func Clone(err error) Error {
 	e, ok := err.(*Cause)
 	if ok {
@@ -80,7 +80,7 @@ func As(err error) (e *Cause) {
 func as(err error, stack stack) (e *Cause) {
 	code, msg := DefaultCode, err.Error()
 	if bizErr, ok := err.(BizErr); ok {
-		code, msg = bizErr.GetCode(), bizErr.GetMsg()
+		code, msg = bizErr.Code(), bizErr.Message()
 	} else if pcErr, ok := err.(pcErr); ok {
 		code, msg = int(pcErr.GetBizStatusCode()), pcErr.GetBizStatusMessage()
 	} else {
@@ -97,15 +97,15 @@ func as(err error, stack stack) (e *Cause) {
 //GetCode ...
 func GetCode(err error) int {
 	if e, ok := err.(Error); ok {
-		return e.GetCode()
+		return e.Code()
 	}
 	return DefaultCode
 }
 
-//GetMsg ...
-func GetMsg(err error) string {
+//GetMessage ...
+func GetMessage(err error) string {
 	if e, ok := err.(Error); ok {
-		return e.GetMsg()
+		return e.Message()
 	}
 	return DefaultMsg
 }
@@ -113,7 +113,7 @@ func GetMsg(err error) string {
 //Is 检查code是不是一样的
 func Is(err1, err2 error) bool {
 	e1, ok := err1.(*Cause)
-	if !ok || e1.GetCode() == DefaultCode {
+	if !ok || e1.Code() == DefaultCode {
 		return stderrs.Is(err1, err2)
 	}
 	return e1.Is(err2)

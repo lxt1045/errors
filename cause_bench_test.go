@@ -15,7 +15,7 @@ func BenchmarkNew(b *testing.B) {
 		f        func() //调用方法
 	}{
 		{"std.New", func() {
-			stderrors.New("ye error")
+			_ = stderrors.New("ye error")
 		}},
 		{"runtime.Caller", func() {
 			runtime.Caller(2)
@@ -25,16 +25,16 @@ func BenchmarkNew(b *testing.B) {
 			runtime.Callers(3, pcs[:])
 		}},
 		{"pkg.New", func() {
-			pkgerrs.New("ye error")
-		}}, //nolint
+			_ = pkgerrs.New("ye error")
+		}},
 		{"pkg.WithStack", func() {
-			pkgerrs.WithStack(stderrors.New("ye error"))
+			_ = pkgerrs.WithStack(stderrors.New("ye error"))
 		}},
 		{"lxt.New", func() {
-			New("ye error")
+			_ = New("ye error")
 		}},
 		{"lxt.NewErr", func() {
-			NewErr(-1, "ye error")
+			_ = NewErr(-1, "ye error")
 		}},
 		{"lxt.buildStack", func() {
 			buildStack(1 + 1)

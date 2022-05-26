@@ -239,3 +239,27 @@ func BenchmarkArgs(b *testing.B) {
 		b.StopTimer()
 	})
 }
+
+func BenchmarkWrapperMarshal(b *testing.B) {
+	// TODO
+	var err error = NewErrSkip(0, errCode, errMsg)
+	for i := 0; i < 0; i++ {
+		err = Wrap(err, errTrace)
+	}
+	b.Run("json", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			MarshalJSON(err)
+		}
+		b.StopTimer()
+	})
+	b.Run("MarshalText", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			MarshalText(err)
+		}
+		b.StopTimer()
+	})
+}

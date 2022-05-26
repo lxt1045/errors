@@ -1,7 +1,6 @@
 package errors
 
 import (
-	"bytes"
 	"fmt"
 )
 
@@ -11,30 +10,37 @@ type wrapper struct {
 	frame
 }
 
-func (e *wrapper) Error() string {
-	return e.trace
+func Wrap(err error, trace string) error {
+	if err == nil {
+		return nil
+	}
+	e := &wrapper{
+		trace: trace,
+		err:   err,
+		frame: buildFrame(1),
+	}
+	return e
+}
+
+func Wrapf(err error, format string, a ...interface{}) error {
+	e := &wrapper{
+		trace: fmt.Sprintf(format, a...),
+		err:   err,
+		frame: buildFrame(1),
+	}
+	return e
 }
 
 func (e *wrapper) Unwrap() error {
 	return e.err
 }
 
-func (e *wrapper) json(buf *bytes.Buffer) {
-	buf.WriteString(`{"trace":"`)
-	buf.WriteString(e.trace)
-	buf.WriteString(`","caller":`)
-	buf.WriteByte('"')
-	buf.WriteString(e.String())
-	buf.WriteString(`"}`)
+func (e *wrapper) Error() string {
+	return e.trace
 }
 
-func (e *wrapper) text(buf *bytes.Buffer) {
-	if e.trace == "" {
-		e.trace = "-"
-	}
-	buf.WriteString(e.trace)
-	buf.WriteString(",\n    ")
-	buf.WriteString(e.String())
+func (e *wrapper) MarshalJSON() ([]byte, error) {
+	return MarshalJSON(e), nil
 }
 
 func (e *wrapper) Format(s fmt.State, verb rune) {
@@ -53,28 +59,35 @@ func (e *wrapper) Format(s fmt.State, verb rune) {
 	}
 }
 
-// MarshalJSON json.Marshaler的方法, json.Marshal 里调用
-func (e *wrapper) MarshalJSON() ([]byte, error) {
-	return MarshalJSON(e), nil
+func (e *wrapper) fmt() fmtWrapper {
+	return fmtWrapper{e.trace, e.frame.String()}
 }
 
-func Wrap(err error, trace string) error {
-	if err == nil {
-		return nil
-	}
-	e := &wrapper{
-		trace: trace,
-		err:   err,
-		frame: NewFrame(1),
-	}
-	return e
+type fmtWrapper struct {
+	trace      string
+	frameCache string
 }
 
-func Wrapf(err error, format string, a ...interface{}) error {
-	e := &wrapper{
-		trace: fmt.Sprintf(format, a...),
-		err:   err,
-		frame: NewFrame(1),
-	}
-	return e
+func (f *fmtWrapper) jsonSize() int {
+	return 10 + len(f.trace) + 12 + len(f.frameCache) + 2
+}
+
+func (f *fmtWrapper) textSize() int {
+	return 6 + len(f.trace) + len(f.frameCache)
+}
+
+func (f *fmtWrapper) json(bs []byte) []byte {
+	bs = append(bs, `{"trace":"`...)
+	bs = append(bs, f.trace...)
+	bs = append(bs, `","caller":"`...)
+	bs = append(bs, f.frameCache...)
+	bs = append(bs, `"}`...)
+	return bs
+}
+
+func (f *fmtWrapper) text(bs []byte) []byte {
+	bs = append(bs, f.trace...)
+	bs = append(bs, ",\n    "...)
+	bs = append(bs, f.frameCache...)
+	return bs
 }

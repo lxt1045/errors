@@ -21,8 +21,8 @@ func Test_Assert(t *testing.T) {
 	t.Run("!OK", func(t *testing.T) {
 		defer TryByFunc(func(e interface{}) (ok bool) {
 			err1 := e.(*Cause)
-			assert.Equal(t, err.Code, err1.Code)
-			assert.Equal(t, err.Msg, err1.Msg)
+			assert.Equal(t, err.code, err1.code)
+			assert.Equal(t, err.msg, err1.msg)
 			return true
 		})
 		OK(false, err)
@@ -31,7 +31,7 @@ func Test_Assert(t *testing.T) {
 	t.Run("!OK", func(t *testing.T) {
 		defer TryByFunc(func(e interface{}) (ok bool) {
 			err1 := e.(*Cause)
-			assert.Equal(t, DefaultCode, err1.Code)
+			assert.Equal(t, DefaultCode, err1.code)
 			return true
 		})
 		OK(false, nil)
@@ -46,7 +46,7 @@ func Test_Assert(t *testing.T) {
 	t.Run("!NilErr", func(t *testing.T) {
 		defer TryByFunc(func(e interface{}) (ok bool) {
 			err1 := e.(*Cause)
-			assert.Equal(t, err.Code, err1.Code)
+			assert.Equal(t, err.code, err1.code)
 			return true
 		})
 		NilErr(err)
@@ -55,8 +55,8 @@ func Test_Assert(t *testing.T) {
 	t.Run("!NilErr", func(t *testing.T) {
 		defer TryByFunc(func(e interface{}) (ok bool) {
 			err1 := e.(*Cause)
-			assert.Equal(t, DefaultCode, err1.Code)
-			assert.Equal(t, errMsg, err1.Msg)
+			assert.Equal(t, DefaultCode, err1.code)
+			assert.Equal(t, errMsg, err1.msg)
 			return true
 		})
 		NilErr(errors.New(errMsg))
@@ -66,8 +66,8 @@ func Test_Assert(t *testing.T) {
 		pkgErr := pkgerrs.New(errMsg)
 		defer TryByFunc(func(e interface{}) (ok bool) {
 			err1 := e.(*Cause)
-			assert.Equal(t, DefaultCode, err1.Code)
-			assert.Equal(t, fmt.Sprintf("%+v", pkgErr), err1.Msg)
+			assert.Equal(t, DefaultCode, err1.code)
+			assert.Equal(t, fmt.Sprintf("%+v", pkgErr), err1.msg)
 			return true
 		})
 		NilErr(pkgErr)
@@ -82,8 +82,8 @@ func Test_Assert(t *testing.T) {
 	t.Run("!Nil", func(t *testing.T) {
 		defer TryByFunc(func(e interface{}) (ok bool) {
 			err1 := e.(*Cause)
-			assert.Equal(t, err.Code, err1.Code)
-			assert.Equal(t, err.Msg, err1.Msg)
+			assert.Equal(t, err.code, err1.code)
+			assert.Equal(t, err.msg, err1.msg)
 			return true
 		})
 		Nil(err, err)
@@ -92,8 +92,8 @@ func Test_Assert(t *testing.T) {
 	t.Run("!Nil", func(t *testing.T) {
 		defer TryByFunc(func(e interface{}) (ok bool) {
 			err1 := e.(*Cause)
-			assert.Equal(t, DefaultCode, err1.Code)
-			assert.NotEqual(t, errMsg, err1.Msg)
+			assert.Equal(t, DefaultCode, err1.code)
+			assert.NotEqual(t, errMsg, err1.msg)
 			return true
 		})
 		Nil(err, nil)
@@ -102,8 +102,8 @@ func Test_Assert(t *testing.T) {
 	t.Run("!Nilf", func(t *testing.T) {
 		defer TryByFunc(func(e interface{}) (ok bool) {
 			err1 := e.(*Cause)
-			assert.Equal(t, errCode, err1.Code)
-			assert.Equal(t, errMsg, err1.Msg)
+			assert.Equal(t, errCode, err1.code)
+			assert.Equal(t, errMsg, err1.msg)
 			return true
 		})
 		Nilf(err, errCode, errMsg)
@@ -122,16 +122,15 @@ func Test_Assert(t *testing.T) {
 	t.Run("TryByFunc", func(t *testing.T) {
 		defer TryByFunc(func(e interface{}) (ok bool) {
 			err1, ok := e.(*Cause)
-			assert.Equal(t, err.Code, err1.Code)
-			assert.Equal(t, err.Msg, err1.Msg)
+			assert.Equal(t, err.code, err1.code)
+			assert.Equal(t, err.msg, err1.msg)
 			return
 		})
-		err = err
 		NilErr(err)
 	})
 
 	t.Run("TryByFunc.nil", func(t *testing.T) {
-		defer TryByFunc(func(e interface{}) (ok bool) {
+		defer TryByFunc(func(interface{}) (ok bool) {
 			assert.Fail(t, "may not in here")
 			return false
 		})
@@ -154,9 +153,8 @@ func Test_Assert(t *testing.T) {
 			return
 		}()
 		err1 := e1.(*Cause)
-		assert.Equal(t, err.Code, err1.Code)
-		assert.Equal(t, err.Msg, err1.Msg)
-		return
+		assert.Equal(t, err.code, err1.code)
+		assert.Equal(t, err.msg, err1.msg)
 	})
 
 	t.Run("TryErr.nil", func(t *testing.T) {
@@ -182,7 +180,6 @@ func Test_Assert(t *testing.T) {
 			defer TryErr(&e)
 			x := 0
 			_ = 11 / x
-			return
 		})
 	})
 }
@@ -253,8 +250,7 @@ func BenchmarkTry(b *testing.B) {
 	}
 
 	for _, r := range runs {
-		name := fmt.Sprintf("%s", r.funcName)
-		b.Run(name, func(b *testing.B) {
+		b.Run(r.funcName, func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
 				err := r.f()

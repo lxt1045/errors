@@ -1,16 +1,12 @@
 package errors
 
 import (
-	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
-	"sync"
-	"unsafe"
 )
 
 // var pathSeparator = string([]byte{os.PathSeparator})
@@ -25,98 +21,134 @@ var (
 		"testing/benchmark.go",
 		"testing/testing.go",
 	}
-
-	pool = sync.Pool{
-		New: func() interface{} {
-			return bytes.NewBuffer(make([]byte, 0, 1024*2))
-		},
-	}
 )
 
 func MarshalJSON(err error) (bs []byte) {
-	buf := pool.Get().(*bytes.Buffer)
-	buf.Reset()
-	buf.WriteString(`{"wrapper":[`)
-	cause := marshalJSON(buf, err)
-	buf.WriteByte(']')
-	buf.WriteString(`,"cause":`)
-	marshalJSON2(buf, cause)
-	buf.WriteString(`}`)
-	bs = make([]byte, buf.Len())
-	copy(bs, buf.Bytes())
-	pool.Put(buf)
+	bs = marshalJSON(1, bs, err)
+	bs[len(bs)-1] = ']'
+	bs = append(bs, '}')
+
 	return
+}
+
+func marshalJSON(size int, bs []byte, err error) []byte {
+	errInner := errors.Unwrap(err)
+	switch e := err.(type) {
+	case *wrapper:
+		cache := e.fmt()
+		if errInner != nil {
+			needSize := cache.jsonSize() + 1
+			bs = marshalJSON(size+needSize, bs, errInner)
+			bs = cache.json(bs)
+			bs = append(bs, ',')
+			return bs
+		}
+		bs = tryGrow(bs, size+cache.jsonSize()+9+12)
+		bs = append(bs, `{"cause":`...)
+		bs = cache.json(bs)
+		bs = append(bs, `,"wrapper":[`...)
+	case *Cause:
+		cache := e.fmt()
+		if errInner != nil {
+			needSize := cache.jsonSize() + 1
+			bs = marshalJSON(size+needSize, bs, errInner)
+			bs = cache.json(bs)
+			bs = append(bs, ',')
+			return bs
+		}
+		bs = tryGrow(bs, size+cache.jsonSize()+9+12)
+		bs = append(bs, `{"cause":`...)
+		bs = cache.json(bs)
+		bs = append(bs, `,"wrapper":[`...)
+	case fmt.Formatter:
+		cache := fmt.Sprintf("%+v", err)
+		if errInner != nil {
+			needSize := len(cache) + 10 + 3
+			bs = marshalJSON(size+needSize, bs, errInner)
+			bs = append(bs, `{"trace":"`...)
+			bs = append(bs, cache...)
+			bs = append(bs, `"},`...)
+			return bs
+		}
+		bs = tryGrow(bs, size+len(cache)+10+13)
+		bs = append(bs, `{"cause":"`...)
+		bs = append(bs, cache...)
+		bs = append(bs, `","wrapper":[`...)
+	default:
+		cache := e.Error()
+		if errInner != nil {
+			needSize := len(cache) + 10 + 3
+			bs = marshalJSON(size+needSize, bs, errInner)
+			bs = append(bs, `{"trace":"`...)
+			bs = append(bs, cache...)
+			bs = append(bs, `"},`...)
+			return bs
+		}
+		bs = tryGrow(bs, size+len(cache)+10+13)
+		bs = append(bs, `{"cause":"`...)
+		bs = append(bs, cache...)
+		bs = append(bs, `","wrapper":[`...)
+	}
+	return bs
 }
 
 func MarshalText(err error) (bs []byte) {
-	buf := pool.Get().(*bytes.Buffer)
-	buf.Reset()
-	marshalText(buf, err)
-	bs = make([]byte, buf.Len())
-	copy(bs, buf.Bytes())
-	pool.Put(buf)
+	bs = marshalText(0, bs, err)
 	return
 }
-
-func marshalJSON(buf *bytes.Buffer, err error) (cause error) {
-	errInner := errors.Unwrap(err)
-	if errInner != nil {
-		l := buf.Len()
-		cause = marshalJSON(buf, errInner)
-		if buf.Len() > l {
-			buf.WriteByte(',')
-		}
-	} else {
-		return err
+func tryGrow(bs []byte, l int) []byte {
+	if cap(bs) < l {
+		bs2 := make([]byte, len(bs), l+len(bs))
+		copy(bs2, bs)
+		// fmt.Printf("tryGrow:%d\n", l)
+		return bs2
 	}
-	marshalJSON2(buf, err)
-	return
+	return bs
 }
-
-func marshalJSON2(buf *bytes.Buffer, err error) (cause error) {
+func marshalText(size int, bs []byte, err error) []byte {
+	errInner := errors.Unwrap(err)
 	switch e := err.(type) {
 	case *wrapper:
-		e.json(buf)
-	case *Cause:
-		e.json(buf)
-	case json.Marshaler:
-		bs, err := e.MarshalJSON()
-		if err != nil {
-			panic(err)
+		cache := e.fmt()
+		needSize := cache.textSize() + 1
+		if errInner != nil {
+			bs = marshalText(size+needSize, bs, errInner)
+			bs = append(bs, '\n')
+			return cache.text(bs)
 		}
-		buf.Write(bs)
-	case fmt.Formatter:
-		buf.WriteString(`{"trace":"`)
-		buf.WriteString(fmt.Sprintf("%+v", err))
-		buf.WriteString(`"}`)
-	default:
-		buf.WriteString(`{"trace":"`)
-		buf.WriteString(e.Error())
-		buf.WriteString(`"}`)
-	}
-	return
-}
-
-func marshalText(buf *bytes.Buffer, err error) {
-	errInner := errors.Unwrap(err)
-	if errInner != nil {
-		marshalText(buf, errInner)
-		buf.WriteByte('\n')
-	}
-	switch e := err.(type) {
-	case *wrapper:
-		e.text(buf)
+		bs = tryGrow(bs, size+needSize)
 	case *Cause:
-		e.text(buf)
+		cache := e.fmt()
+		needSize := cache.textSize() + 1
+		if errInner != nil {
+			bs = marshalText(size+needSize, bs, errInner)
+			bs = append(bs, '\n')
+			return cache.text(bs)
+		}
+		bs = tryGrow(bs, size+needSize)
+		bs = cache.text(bs)
 	case fmt.Formatter:
-		buf.WriteString(`{"trace":"`)
-		buf.WriteString(fmt.Sprintf("%+v", err))
-		buf.WriteString(`"}`)
+		cache := fmt.Sprintf("%+v", err)
+		needSize := len(cache) + 5 + 1
+		if errInner != nil {
+			bs = marshalText(size+needSize, bs, errInner)
+			bs = append(bs, "\n    "...)
+			return append(bs, cache...)
+		}
+		bs = tryGrow(bs, size+needSize)
+		bs = append(bs, cache...)
 	default:
-		buf.WriteString(`{"trace":"`)
-		buf.WriteString(e.Error())
-		buf.WriteString(`"}`)
+		cache := e.Error()
+		needSize := len(cache) + 5 + 1
+		if errInner != nil {
+			bs = marshalText(size+needSize, bs, errInner)
+			bs = append(bs, "\n    "...)
+			return append(bs, cache...)
+		}
+		bs = tryGrow(bs, size+needSize)
+		bs = append(bs, cache...)
 	}
+	return bs
 }
 
 func toCaller(f runtime.Frame) caller { // nolint:gocritic
@@ -167,11 +199,6 @@ type caller struct {
 func (c caller) String() (s string) {
 	line := strconv.Itoa(c.Line)
 	return "(" + c.File + ":" + line + ") " + c.Func
-}
-
-func bufToString(buf *bytes.Buffer) string {
-	bs := buf.Bytes()
-	return *(*string)(unsafe.Pointer(&bs))
 }
 
 func skipFile(f string) bool {

@@ -9,6 +9,22 @@ import (
 	pkgerrs "github.com/pkg/errors"
 )
 
+func TestMarshalJSON(t *testing.T) {
+	for _, depth := range []int{0, 10} {
+		name := fmt.Sprintf("%s-%d", "MarshalJSON", depth)
+		t.Run(name, func(t *testing.T) {
+			var err error = NewErrSkip(0, errCode, errMsg)
+			for i := 0; i < depth; i++ {
+				err = Wrap(err, errTrace)
+				err = Wrap(err, errTrace)
+			}
+			bs := MarshalJSON(err)
+			t.Log(len(bs))
+			t.Log(string(bs))
+		})
+	}
+}
+
 /*
 go test -benchmem -run=^$ -bench "^(BenchmarkMarshal)$" github.com/lxt1045/errors -count=1 -v -cpuprofile cpu.prof -c
 go tool pprof ./errors.test cpu.prof

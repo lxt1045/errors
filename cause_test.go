@@ -13,7 +13,6 @@ const (
 	errCode   = 88888
 	errMsg    = "msg!"
 	errTrace  = "trace!"
-	errTrace1 = "trace!1"
 	errFormat = "format:%v"
 )
 
@@ -21,8 +20,8 @@ func Test_Err(t *testing.T) {
 	t.Run("buildCause", func(t *testing.T) {
 		pcs := [DefaultDepth]uintptr{}
 		_, s := runtime.Callers(baseSkip, pcs[:]), buildCause(errCode, errMsg, buildStack(0))
-		assert.Equal(t, s.GetCode(), errCode)
-		assert.Equal(t, s.GetMsg(), errMsg)
+		assert.Equal(t, s.Code(), errCode)
+		assert.Equal(t, s.Message(), errMsg)
 		assert.True(t, equalCaller(pcs[0], s.stack.pcCache[0]))
 		assert.Equal(t, pcs[1:], s.stack.pcCache[1:])
 	})
@@ -45,20 +44,21 @@ func Test_Err(t *testing.T) {
 		assert.Equal(t, bs1, bs2)
 
 		st := struct {
-			Code  int      `json:"code"`
-			Msg   string   `json:"msg"`
-			Stack []string `json:"stack"`
+			Code  int     `json:"code"`
+			Msg   string  `json:"msg"`
+			Stack callers `json:"stack"`
 		}{}
 		err = json.Unmarshal(bs1, &st)
 		assert.Nil(t, err)
-		assert.Equal(t, s.Msg, st.Msg)
+		assert.Equal(t, s.msg, st.Msg)
+		assert.Equal(t, s.code, st.Code)
 		assert.Equal(t, s.stack.Callers(), st.Stack)
 	})
 
 	t.Run("Error", func(t *testing.T) {
 		s := &Cause{
-			Code: errCode,
-			Msg:  errMsg,
+			code: errCode,
+			msg:  errMsg,
 			stack: stack{
 				npc:     1,
 				pcCache: testPCs,
