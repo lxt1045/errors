@@ -4,6 +4,7 @@ import (
 	stderrs "errors"
 	"fmt"
 	"testing"
+	"unsafe"
 
 	lxterrs "github.com/lxt1045/errors"
 	pkgerrs "github.com/pkg/errors"
@@ -30,6 +31,13 @@ func lxtNew(at, depth int) error {
 	return lxtNew(at+1, depth)
 }
 
+func NewCause(at, depth int) error {
+	if at >= depth {
+		return lxterrs.NewCause(0, 0, "ye error")
+	}
+	return NewCause(at+1, depth)
+}
+
 // GlobalE is an exported global to store the result of benchmark results,
 // preventing the compiler from optimising the benchmark functions away.
 var GlobalE string
@@ -45,6 +53,9 @@ func BenchmarkNew(b *testing.B) {
 		}},
 		{"lxtNew", func(at, depth int) error {
 			return lxtNew(at, depth)
+		}},
+		{"NewCause", func(at, depth int) error {
+			return NewCause(at, depth)
 		}},
 		{"pkgNew", func(at, depth int) error {
 			return pkgNew(at, depth)
@@ -70,20 +81,24 @@ func BenchmarkFormatting(b *testing.B) {
 	runs := []struct {
 		funcName    string
 		fNew        func(at, depth int) error
-		fFormatting func(err error)
+		fFormatting func(err error) string
 	}{
-		{"stdNew", stdNew, func(err error) {
-
+		{"std.%+v", stdNew, func(err error) string {
+			return fmt.Sprintf("%+v", err)
 		}},
-		{"lxtNew", lxtNew, func(err error) {
-
+		{"lxt.%+v", lxtNew, func(err error) string {
+			return fmt.Sprintf("%+v", err)
 		}},
-		{"pkgNew", pkgNew, func(err error) {
-			return
+		{"lxt.Json", lxtNew, func(err error) string {
+			bs := lxterrs.MarshalJSON(err)
+			return *(*string)(unsafe.Pointer(&bs))
+		}},
+		{"pkg.%+v", pkgNew, func(err error) string {
+			return fmt.Sprintf("%+v", err)
 		}},
 	}
-	for _, depth := range []int{1, 10, 100} {
-		for _, r := range runs {
+	for _, r := range runs {
+		for _, depth := range []int{1, 10, 100} {
 			err := r.fNew(0, depth)
 			name := fmt.Sprintf("%s-%d", r.funcName, depth)
 			b.Run(name, func(b *testing.B) {

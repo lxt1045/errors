@@ -3,8 +3,6 @@ package errors
 import (
 	"errors"
 	"fmt"
-	"runtime"
-	"sync"
 	"testing"
 
 	pkgerrs "github.com/pkg/errors"
@@ -12,8 +10,7 @@ import (
 )
 
 func Test_Assert(t *testing.T) {
-	err := NewErrSkip(0, errCode, errMsg)
-
+	err := NewCause(0, errCode, errMsg)
 	t.Run("OK", func(t *testing.T) {
 		OK(true, nil)
 	})
@@ -260,36 +257,4 @@ func BenchmarkTry(b *testing.B) {
 			b.StopTimer()
 		})
 	}
-}
-
-func TestTry(t *testing.T) {
-	Print := func(n int) {
-		s := buildStack(1)
-		fmt.Printf("%d:\n", n)
-		for i := 0; i < s.npc; i++ {
-			f, _ := runtime.CallersFrames(s.pcCache[i : i+1]).Next()
-			c := toCaller(f).String()
-			fmt.Printf("%d: %s\n", s.pcCache[i], c)
-		}
-	}
-	Print(1)
-	func() {
-		Print(2)
-		func() {
-			Print(3)
-		}()
-		//
-		//
-		Print(4)
-	}()
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		func() {
-			Print(5)
-		}()
-	}()
-	wg.Wait()
-
 }

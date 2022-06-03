@@ -3,11 +3,17 @@ package errors
 import (
 	"context"
 	"log"
-	"runtime"
 	"sync"
 
 	"github.com/petermattis/goid"
 )
+
+/*
+	通过ctx待err的方式监减少检查err
+  if ctx.Get("err")!=nil{
+	return
+  }
+*/
 
 func init() {
 	log.SetFlags(log.Flags() | log.Lmicroseconds | log.Lshortfile) //log.Llongfile
@@ -17,17 +23,14 @@ var (
 	lockRoutineDefer  sync.RWMutex
 	mRoutineLastDefer = make(map[int64]struct{})
 
-	// HookNorRecoverPanic 如果主动 panic 前,本 goroutine 没有 recover(),
-	// 则调用此方法建议在此处一直等待
-	notRecoverPanicHook = func(ctx context.Context, err error) {
+	// 当goroutine没有defer时,会调用此函数,建议用于通知告警
+	hookBeforePanic = func(ctx context.Context, err error) {
 		<-ctx.Done()
-		log.Printf("not recover panic: %+v", err)
-		runtime.Goexit()
 	}
 )
 
-func SetNotRecoverPanicHook(f func(context.Context, error)) {
-	notRecoverPanicHook = f
+func SetHookBeforePanic(f func(context.Context, error)) {
+	hookBeforePanic = f
 }
 
 func TryCatchx(fCatch func(interface{}) bool) func() {
@@ -68,23 +71,29 @@ func TryCatchx(fCatch func(interface{}) bool) func() {
 	}
 }
 
-func OKx(ok bool, err *Cause) {
+func OKx(ctx context.Context, ok bool, err *Cause) {
 	if ok {
 		return
 	}
 	if err == nil {
-		err = buildCause(DefaultCode, "not ok", buildStack(1))
+		err = NewCause(1, DefaultCode, "not ok")
 	}
-	maybePanic(err)
+	maybePanic(ctx, err)
 }
 
-func maybePanic(err *Cause) {
+func maybePanic(ctx context.Context, err *Cause) {
 	lockRoutineDefer.RLock()
 	_, ok := mRoutineLastDefer[goid.Get()]
 	lockRoutineDefer.RUnlock()
 	if ok {
 		panic(err)
 	}
-	notRecoverPanicHook(context.Background(), err)
-	panic(err)
+
+	_defer := goid.GetDefer()
+	if _defer != 0 {
+		panic(err)
+	}
+
+	hookBeforePanic(ctx, err)
+	return
 }

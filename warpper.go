@@ -2,32 +2,33 @@ package errors
 
 import (
 	"fmt"
+	"runtime"
+	"sync"
+)
+
+var (
+	mFrames    = make(map[uintptr]frame)
+	mFuncsLock sync.RWMutex
 )
 
 type wrapper struct {
 	trace string
 	err   error
-	frame
+	pc    [1]uintptr
 }
 
-func Wrap(err error, trace string) error {
+func Wrap(err error, format string, a ...interface{}) error {
 	if err == nil {
 		return nil
 	}
-	e := &wrapper{
-		trace: trace,
-		err:   err,
-		frame: buildFrame(1),
+	if len(a) > 0 {
+		format = fmt.Sprintf(format, a...)
 	}
-	return e
-}
-
-func Wrapf(err error, format string, a ...interface{}) error {
 	e := &wrapper{
-		trace: fmt.Sprintf(format, a...),
+		trace: format,
 		err:   err,
-		frame: buildFrame(1),
 	}
+	runtime.Callers(1+baseSkip, e.pc[:])
 	return e
 }
 
@@ -36,7 +37,10 @@ func (e *wrapper) Unwrap() error {
 }
 
 func (e *wrapper) Error() string {
-	return e.trace
+	cache := e.fmt()
+	buf := NewWriteBuffer(cache.textSize())
+	cache.text(buf)
+	return buf.String()
 }
 
 func (e *wrapper) MarshalJSON() ([]byte, error) {
@@ -59,35 +63,72 @@ func (e *wrapper) Format(s fmt.State, verb rune) {
 	}
 }
 
+func (e *wrapper) parse() *frame {
+	mFuncsLock.RLock()
+	c, ok := mFrames[e.pc[0]]
+	mFuncsLock.RUnlock()
+	if !ok {
+		f, _ := runtime.CallersFrames(e.pc[:]).Next()
+		c.stack = toCaller(f).String()
+		l, yes := countEscape(c.stack)
+		c.attr = uint64(l) << 32
+		if yes {
+			c.attr |= 1
+		}
+
+		mFuncsLock.Lock()
+		mFrames[e.pc[0]] = c
+		mFuncsLock.Unlock()
+	}
+
+	return &c
+}
+
 func (e *wrapper) fmt() fmtWrapper {
-	return fmtWrapper{e.trace, e.frame.String()}
+	return fmtWrapper{trace: e.trace, frame: e.parse()}
 }
 
+type frame struct {
+	stack string
+	attr  uint64 // count:escape ==> uint32:uint32
+}
 type fmtWrapper struct {
-	trace      string
-	frameCache string
+	trace       string
+	traceEscape bool
+	*frame
 }
 
-func (f *fmtWrapper) jsonSize() int {
-	return 10 + len(f.trace) + 12 + len(f.frameCache) + 2
+func (f *fmtWrapper) jsonSize() (l int) {
+	l, f.traceEscape = countEscape(f.trace)
+	l += len(`{"trace":"","caller":""}`) + (int(f.attr) >> 32)
+	return
 }
 
 func (f *fmtWrapper) textSize() int {
-	return 6 + len(f.trace) + len(f.frameCache)
+	return len(",\n    ;") + len(f.trace) + len(f.stack)
 }
 
-func (f *fmtWrapper) json(bs []byte) []byte {
-	bs = append(bs, `{"trace":"`...)
-	bs = append(bs, f.trace...)
-	bs = append(bs, `","caller":"`...)
-	bs = append(bs, f.frameCache...)
-	bs = append(bs, `"}`...)
-	return bs
+func (f *fmtWrapper) json(buf *writeBuffer) {
+	buf.WriteString(`{"trace":"`)
+	if !f.traceEscape {
+		buf.WriteString(f.trace)
+	} else {
+		buf.WriteEscape(f.trace)
+	}
+	buf.WriteString(`","caller":"`)
+	if (f.attr & 1) == 0 {
+		buf.WriteString(f.stack)
+	} else {
+		buf.WriteEscape(f.stack)
+	}
+	buf.WriteString(`"}`)
+	return
 }
 
-func (f *fmtWrapper) text(bs []byte) []byte {
-	bs = append(bs, f.trace...)
-	bs = append(bs, ",\n    "...)
-	bs = append(bs, f.frameCache...)
-	return bs
+func (f *fmtWrapper) text(buf *writeBuffer) {
+	buf.WriteString(f.trace)
+	buf.WriteString(",\n    ")
+	buf.WriteString(f.stack)
+	buf.WriteByte(';')
+	return
 }

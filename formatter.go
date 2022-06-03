@@ -9,8 +9,9 @@ import (
 	"strings"
 )
 
-// var pathSeparator = string([]byte{os.PathSeparator})
-const pathSeparator = string(os.PathSeparator)
+const (
+	pathSeparator = string(os.PathSeparator)
+)
 
 var (
 	rootDirs = []string{"src/", "/pkg/mod/"} // file 会从rootDir开始截断
@@ -23,132 +24,99 @@ var (
 	}
 )
 
+//MarshalJSON 将err序列化为json格式
 func MarshalJSON(err error) (bs []byte) {
-	bs = marshalJSON(1, bs, err)
-	bs[len(bs)-1] = ']'
-	bs = append(bs, '}')
-
-	return
+	buf := &writeBuffer{}
+	marshalJSON(2, buf, err)
+	bs = buf.Bytes()
+	if bs[len(bs)-1] == ',' {
+		bs = bs[:len(bs)-1]
+	}
+	return append(bs, `]}`...)
 }
 
-func marshalJSON(size int, bs []byte, err error) []byte {
-	errInner := errors.Unwrap(err)
+//marshalJSON 递归 Unwrap 并序列化为 JSON 格式
+func marshalJSON(size int, buf *writeBuffer, err error) {
 	switch e := err.(type) {
-	case *wrapper:
-		cache := e.fmt()
-		if errInner != nil {
-			needSize := cache.jsonSize() + 1
-			bs = marshalJSON(size+needSize, bs, errInner)
-			bs = cache.json(bs)
-			bs = append(bs, ',')
-			return bs
-		}
-		bs = tryGrow(bs, size+cache.jsonSize()+9+12)
-		bs = append(bs, `{"cause":`...)
-		bs = cache.json(bs)
-		bs = append(bs, `,"wrapper":[`...)
+	//如果将 *wrapper 和 *Cause 合成一个 interface{} 分支, 将导致性能退化
 	case *Cause:
 		cache := e.fmt()
-		if errInner != nil {
-			needSize := cache.jsonSize() + 1
-			bs = marshalJSON(size+needSize, bs, errInner)
-			bs = cache.json(bs)
-			bs = append(bs, ',')
-			return bs
-		}
-		bs = tryGrow(bs, size+cache.jsonSize()+9+12)
-		bs = append(bs, `{"cause":`...)
-		bs = cache.json(bs)
-		bs = append(bs, `,"wrapper":[`...)
+		buf.Grow(size + cache.jsonSize() + len(`{"cause":,"wrapper":[`))
+		buf.WriteString(`{"cause":`)
+		cache.json(buf)
+		buf.WriteString(`,"wrapper":[`)
+	case *wrapper:
+		cache := e.fmt()
+		needSize := cache.jsonSize() + 1
+		marshalJSON(size+needSize, buf, e.Unwrap())
+		cache.json(buf)
+		buf.WriteByte(',')
+		return
 	case fmt.Formatter:
 		cache := fmt.Sprintf("%+v", err)
-		if errInner != nil {
-			needSize := len(cache) + 10 + 3
-			bs = marshalJSON(size+needSize, bs, errInner)
-			bs = append(bs, `{"trace":"`...)
-			bs = append(bs, cache...)
-			bs = append(bs, `"},`...)
-			return bs
+		cacheSize, escape := countEscape(cache)
+		buf.Grow(size + cacheSize + len(`{"cause":"","wrapper":[`))
+		buf.WriteString(`{"cause":"`)
+		if !escape {
+			buf.WriteString(cache)
+		} else {
+			buf.WriteEscape(cache)
 		}
-		bs = tryGrow(bs, size+len(cache)+10+13)
-		bs = append(bs, `{"cause":"`...)
-		bs = append(bs, cache...)
-		bs = append(bs, `","wrapper":[`...)
+		buf.WriteString(`","wrapper":[`)
 	default:
-		cache := e.Error()
-		if errInner != nil {
-			needSize := len(cache) + 10 + 3
-			bs = marshalJSON(size+needSize, bs, errInner)
-			bs = append(bs, `{"trace":"`...)
-			bs = append(bs, cache...)
-			bs = append(bs, `"},`...)
-			return bs
+		if err == nil {
+			buf.Grow(size)
+			return
 		}
-		bs = tryGrow(bs, size+len(cache)+10+13)
-		bs = append(bs, `{"cause":"`...)
-		bs = append(bs, cache...)
-		bs = append(bs, `","wrapper":[`...)
+		cache := e.Error()
+		cacheSize, escape := countEscape(cache)
+		buf.Grow(size + cacheSize + len(`{"cause":"","wrapper":[`))
+		buf.WriteString(`{"cause":"`)
+		if !escape {
+			buf.WriteString(cache)
+		} else {
+			buf.WriteEscape(cache)
+		}
+		buf.WriteString(`","wrapper":[`)
 	}
-	return bs
+	return
 }
 
 func MarshalText(err error) (bs []byte) {
-	bs = marshalText(0, bs, err)
-	return
+	buf := &writeBuffer{}
+	marshalText(0, buf, err)
+	return buf.Bytes()
 }
-func tryGrow(bs []byte, l int) []byte {
-	if cap(bs) < l {
-		bs2 := make([]byte, len(bs), l+len(bs))
-		copy(bs2, bs)
-		// fmt.Printf("tryGrow:%d\n", l)
-		return bs2
-	}
-	return bs
-}
-func marshalText(size int, bs []byte, err error) []byte {
-	errInner := errors.Unwrap(err)
+
+func marshalText(size int, buf *writeBuffer, err error) {
 	switch e := err.(type) {
+	case *Cause:
+		cache := e.fmt()
+		needSize := cache.textSize()
+		buf.Grow(size + needSize)
+		cache.text(buf)
 	case *wrapper:
 		cache := e.fmt()
 		needSize := cache.textSize() + 1
-		if errInner != nil {
-			bs = marshalText(size+needSize, bs, errInner)
-			bs = append(bs, '\n')
-			return cache.text(bs)
-		}
-		bs = tryGrow(bs, size+needSize)
-	case *Cause:
-		cache := e.fmt()
-		needSize := cache.textSize() + 1
-		if errInner != nil {
-			bs = marshalText(size+needSize, bs, errInner)
-			bs = append(bs, '\n')
-			return cache.text(bs)
-		}
-		bs = tryGrow(bs, size+needSize)
-		bs = cache.text(bs)
+		marshalText(size+needSize, buf, errors.Unwrap(err))
+		buf.WriteByte('\n')
+		cache.text(buf)
 	case fmt.Formatter:
 		cache := fmt.Sprintf("%+v", err)
-		needSize := len(cache) + 5 + 1
-		if errInner != nil {
-			bs = marshalText(size+needSize, bs, errInner)
-			bs = append(bs, "\n    "...)
-			return append(bs, cache...)
-		}
-		bs = tryGrow(bs, size+needSize)
-		bs = append(bs, cache...)
+		buf.Grow(size + len(cache) + 1)
+		buf.WriteString(cache)
+		buf.WriteByte(';')
 	default:
-		cache := e.Error()
-		needSize := len(cache) + 5 + 1
-		if errInner != nil {
-			bs = marshalText(size+needSize, bs, errInner)
-			bs = append(bs, "\n    "...)
-			return append(bs, cache...)
+		if err == nil {
+			buf.Grow(size)
+			return
 		}
-		bs = tryGrow(bs, size+needSize)
-		bs = append(bs, cache...)
+		cache := e.Error()
+		buf.Grow(size + len(cache) + 1)
+		buf.WriteString(cache)
+		buf.WriteByte(';')
 	}
-	return bs
+	return
 }
 
 func toCaller(f runtime.Frame) caller { // nolint:gocritic
@@ -197,6 +165,9 @@ type caller struct {
 }
 
 func (c caller) String() (s string) {
+	if c.File == "" || c.Func == "" {
+		return ""
+	}
 	line := strconv.Itoa(c.Line)
 	return "(" + c.File + ":" + line + ") " + c.Func
 }
@@ -208,4 +179,120 @@ func skipFile(f string) bool {
 		}
 	}
 	return false
+}
+
+func MarshalJSON2(err error) (bs []byte) {
+	bs = marshalJSON2(1, bs, err)
+	bs[len(bs)-1] = ']'
+	bs = append(bs, '}')
+
+	return
+}
+
+func marshalJSON2(size int, bs []byte, err error) []byte {
+	errInner := errors.Unwrap(err)
+	switch e := err.(type) {
+	case *wrapper:
+		cache := e.fmt()
+		if errInner != nil {
+			needSize := cache.jsonSize() + 1
+			bs = marshalJSON2(size+needSize, bs, errInner)
+			bs = cache.json2(bs)
+			bs = append(bs, ',')
+			return bs
+		}
+		bs = tryGrow(bs, size+cache.jsonSize()+9+12)
+		bs = append(bs, `{"cause":`...)
+		bs = cache.json2(bs)
+		bs = append(bs, `,"wrapper":[`...)
+	case *Cause:
+		cache := e.fmt()
+		if errInner != nil {
+			needSize := cache.jsonSize() + 1
+			bs = marshalJSON2(size+needSize, bs, errInner)
+			bs = cache.json2(bs)
+			bs = append(bs, ',')
+			return bs
+		}
+		bs = tryGrow(bs, size+cache.jsonSize()+9+12)
+		bs = append(bs, `{"cause":`...)
+		bs = cache.json2(bs)
+		bs = append(bs, `,"wrapper":[`...)
+	case fmt.Formatter:
+		cache := fmt.Sprintf("%+v", err)
+		if errInner != nil {
+			needSize := len(cache) + 10 + 3
+			bs = marshalJSON2(size+needSize, bs, errInner)
+			bs = append(bs, `{"trace":"`...)
+			bs = append(bs, cache...)
+			bs = append(bs, `"},`...)
+			return bs
+		}
+		bs = tryGrow(bs, size+len(cache)+10+13)
+		bs = append(bs, `{"cause":"`...)
+		bs = append(bs, cache...)
+		bs = append(bs, `","wrapper":[`...)
+	default:
+		cache := e.Error()
+		if errInner != nil {
+			needSize := len(cache) + 10 + 3
+			bs = marshalJSON2(size+needSize, bs, errInner)
+			bs = append(bs, `{"trace":"`...)
+			bs = append(bs, cache...)
+			bs = append(bs, `"},`...)
+			return bs
+		}
+		bs = tryGrow(bs, size+len(cache)+10+13)
+		bs = append(bs, `{"cause":"`...)
+		bs = append(bs, cache...)
+		bs = append(bs, `","wrapper":[`...)
+	}
+	return bs
+}
+func tryGrow(bs []byte, l int) []byte {
+	if cap(bs) < l {
+		bs2 := make([]byte, len(bs), l+len(bs))
+		copy(bs2, bs)
+		// fmt.Printf("tryGrow:%d\n", l)
+		return bs2
+	}
+	return bs
+}
+
+func (f *fmtCause) json2(bs []byte) []byte {
+	bs = append(bs, `{"code":`...)
+	bs = append(bs, f.code...)
+	bs = append(bs, `,"msg":"`...)
+	bs = append(bs, f.msg...)
+	bs = append(bs, '"')
+	if len(f.stack) > 0 {
+		bs = append(bs, `,"stack":`...)
+		for i, str := range f.stack {
+			if i != 0 {
+				bs = append(bs, ',')
+			}
+			bs = append(bs, '"')
+			if f.attr&(1<<i) == 0 {
+				bs = append(bs, str...)
+			} else {
+				bs = append(bs, str...)
+			}
+			bs = append(bs, '"')
+		}
+	}
+	bs = append(bs, '}')
+	return bs
+}
+
+func (f *fmtWrapper) json2(bs []byte) []byte {
+	bs = append(bs, `{"trace":"`...)
+	bs = append(bs, f.trace...)
+	bs = append(bs, `","caller":"`...)
+	if !f.traceEscape {
+		bs = append(bs, f.trace...)
+	} else {
+		bs = append(bs, f.trace...)
+	}
+	bs = append(bs, `"}`...)
+	return bs
 }

@@ -36,9 +36,6 @@ func BenchmarkNew(b *testing.B) {
 		{"lxt.NewErr", func() {
 			_ = NewErr(-1, "ye error")
 		}},
-		{"lxt.buildStack", func() {
-			buildStack(1 + 1)
-		}},
 	}
 	for _, r := range runs {
 		name := r.funcName

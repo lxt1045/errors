@@ -20,11 +20,7 @@ func OK(ok bool, err *Cause) {
 	if err != nil {
 		panic(err) //重新生成调用栈
 	}
-	panic(&Cause{
-		code:  DefaultCode,
-		msg:   "not ok",
-		stack: buildStack(1),
-	})
+	panic(NewCause(1, DefaultCode, "not ok"))
 }
 
 func NilErr(err error) {
@@ -33,7 +29,7 @@ func NilErr(err error) {
 	}
 	e, ok := err.(*Cause)
 	if !ok {
-		e = as(err, buildStack(1))
+		e = CloneAs(err, 1)
 	}
 	panic(e)
 }
@@ -45,22 +41,14 @@ func Nil(obj interface{}, err *Cause) {
 	if err != nil {
 		panic(err) //重新生成调用栈
 	}
-	panic(&Cause{
-		code:  DefaultCode,
-		msg:   "not nil",
-		stack: buildStack(1),
-	})
+	panic(NewCause(1, DefaultCode, "not nil"))
 }
 
 func Nilf(obj interface{}, code int, format string, a ...interface{}) {
 	if IsNil(obj) {
 		return
 	}
-	panic(&Cause{
-		code:  code,
-		msg:   fmt.Sprintf(format, a...),
-		stack: buildStack(1),
-	})
+	panic(NewCause(1, code, fmt.Sprintf(format, a...)))
 }
 
 func IsNil(object interface{}) bool {
