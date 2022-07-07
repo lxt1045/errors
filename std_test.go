@@ -13,7 +13,7 @@ func TestStd(t *testing.T) {
 		err := NewErr(errCode, errMsg)
 		cause := err.(*Cause)
 		assert.Equal(t, cause.Code(), errCode)
-		assert.Equal(t, cause.Message(), errMsg)
+		assert.Equal(t, cause.Msg(), errMsg)
 		code, msg := GetCodeMsg(err)
 		assert.Equal(t, code, errCode)
 		assert.Equal(t, msg, errMsg)

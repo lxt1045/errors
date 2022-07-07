@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"runtime"
 	"testing"
+	"unsafe"
 
+	stderrors "errors"
+
+	pkgerrs "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -25,82 +29,58 @@ var (
 )
 
 func TestMain(m *testing.M) {
-	mStacks[testPCs] = &callers{stack: []string{testFrameFunc}, attr: uint64(len(testFrame) << 32)}
+	// mStacks[testPCs] = &callers{stack: []string{testFrameFunc}, attr: uint64(len(testFrame) << 32)}
 
-	mFrames[testFrame[0]] = frame{stack: testFrameFunc, attr: uint64(len(testFrameFunc)) << 32}
+	// mFrames[testFrame[0]] = frame{stack: testFrameFunc, attr: uint64(len(testFrameFunc)) << 32}
+	mFramesCache = func() unsafe.Pointer {
+		m := map[uintptr]*frame{
+			testFrame[0]: &frame{stack: testFrameFunc, attr: uint64(len(testFrameFunc)) << 32},
+		}
+		return unsafe.Pointer(&m)
+	}()
 	m.Run()
 }
 
 func TestNew(t *testing.T) {
-	t.Run("New", func(t *testing.T) {
-		pcs := [DefaultDepth]uintptr{}
-		npc, err := runtime.Callers(baseSkip, pcs[:]), New(errMsg)
-		e := err.(*Cause)
-		assert.Equal(t, e.Code(), DefaultCode)
-		assert.Equal(t, e.Message(), errMsg)
-		assert.True(t, equalStack(t, pcs[:npc], e.pcs[:e.npc]))
-	})
-
-	t.Run("Errorf", func(t *testing.T) {
-		pcs := [DefaultDepth]uintptr{}
-		npc, err := runtime.Callers(baseSkip, pcs[:]), Errorf(errFormat, errMsg)
-		e := err.(*Cause)
-		assert.Equal(t, e.Code(), DefaultCode)
-		assert.Equal(t, e.Message(), fmt.Sprintf(errFormat, errMsg))
-		assert.True(t, equalStack(t, pcs[:npc], e.pcs[:e.npc]))
-	})
-
-	t.Run("Errf", func(t *testing.T) {
-		pcs := [DefaultDepth]uintptr{}
-		npc, err := runtime.Callers(baseSkip, pcs[:]), NewErr(errCode, errFormat, errMsg)
-		e := err.(*Cause)
-		assert.Equal(t, e.Code(), errCode)
-		assert.Equal(t, e.Message(), fmt.Sprintf(errFormat, errMsg))
-		assert.True(t, equalStack(t, pcs[:npc], e.pcs[:e.npc]))
-	})
-
-	t.Run("NewErr", func(t *testing.T) {
-		pcs := [DefaultDepth]uintptr{}
-		npc, err := runtime.Callers(baseSkip, pcs[:]), NewErr(errCode, errMsg)
-		e := err.(*Cause)
-		assert.Equal(t, e.Code(), errCode)
-		assert.Equal(t, e.Message(), errMsg)
-		assert.True(t, equalStack(t, pcs[:npc], e.pcs[:e.npc]))
-	})
-
 	t.Run("NewCause", func(t *testing.T) {
 		pcs := [DefaultDepth]uintptr{}
-		npc, e := runtime.Callers(baseSkip, pcs[:]), NewCause(0, errCode, errMsg)
+		npc, e := runtime.Callers(1, pcs[:]), NewCause(0, errCode, errMsg)
 		assert.Equal(t, e.Code(), errCode)
-		assert.Equal(t, e.Message(), errMsg)
-		assert.True(t, equalStack(t, pcs[:npc], e.pcs[:e.npc]))
+		assert.Equal(t, e.Msg(), errMsg)
+		assert.True(t, len(e.cache.stack) > 0)
+		stack := parseSlow(pcs[:npc])
+		assert.Equal(t, stack, e.cache.stack)
 	})
 
 	t.Run("NewCausef", func(t *testing.T) {
 		pcs := [DefaultDepth]uintptr{}
-		npc, e := runtime.Callers(baseSkip, pcs[:]), NewCause(0, errCode, errFormat, errMsg)
+		npc, e := runtime.Callers(1, pcs[:]), NewCause(0, errCode, errFormat, errMsg)
 		assert.Equal(t, e.Code(), errCode)
-		assert.Equal(t, e.Message(), fmt.Sprintf(errFormat, errMsg))
-		assert.True(t, equalStack(t, pcs[:npc], e.pcs[:e.npc]))
+		assert.Equal(t, e.Msg(), fmt.Sprintf(errFormat, errMsg))
+		assert.True(t, len(e.cache.stack) > 0)
+		stack := parseSlow(pcs[:npc])
+		assert.Equal(t, stack, e.cache.stack)
 	})
 
 	t.Run("Wrap", func(t *testing.T) {
 		pcs := [1]uintptr{}
 		err := NewCause(0, errCode, errFormat, errMsg)
-		_, e := runtime.Callers(baseSkip, pcs[:]), Wrap(err, errTrace)
+		_, e := runtime.Callers(1, pcs[:]), Wrap(err, errTrace)
 		// assert.Equal(t, e.Code(), errCode)
-		// assert.Equal(t, e.Message(), fmt.Sprintf(errFormat, errMsg))
+		// assert.Equal(t, e.Msg(), fmt.Sprintf(errFormat, errMsg))
 		_ = e
 	})
 }
+
 func Test_Cause(t *testing.T) {
 	t.Run("NewCause", func(t *testing.T) {
 		pcs := [DefaultDepth]uintptr{}
-		_, c := runtime.Callers(baseSkip, pcs[:]), NewCause(0, errCode, errMsg)
-		assert.Equal(t, c.Code(), errCode)
-		assert.Equal(t, c.Message(), errMsg)
-		assert.True(t, equalCaller(pcs[0], c.pcs[0]))
-		assert.Equal(t, pcs[1:], c.pcs[1:])
+		npc, e := runtime.Callers(1, pcs[:]), NewCause(0, errCode, errMsg)
+		assert.Equal(t, e.Code(), errCode)
+		assert.Equal(t, e.Msg(), errMsg)
+		assert.True(t, len(e.cache.stack) > 0)
+		stack := parseSlow(pcs[:npc])
+		assert.Equal(t, stack, e.cache.stack)
 	})
 
 	t.Run("Is", func(t *testing.T) {
@@ -136,8 +116,9 @@ func Test_Cause(t *testing.T) {
 		c := &Cause{
 			code: errCode,
 			msg:  errMsg,
-			npc:  1,
-			pcs:  testPCs,
+			cache: &callers{
+				stack: []string{"(file1:88) func1"},
+			},
 		}
 		str := "88888, msg!;\n    (file1:88) func1;"
 		assert.Equal(t, c.Error(), str)
@@ -160,6 +141,8 @@ func Test_Text(t *testing.T) {
 	err := ferr2()
 	fmt.Printf("c:%[1]c,\nv:%[1]v,\n+v:%+[1]v\nq:%[1]q\n", err)
 }
+
+//*/
 
 func Test_JSON(t *testing.T) {
 	ferr1 := func() error {
@@ -184,6 +167,92 @@ func Test_JSON(t *testing.T) {
 	fmt.Println(string(bs))
 }
 
+/*
+go test -benchmem -run=^$ -bench "^(BenchmarkNewCause1)$" github.com/lxt1045/errors -count=1 -v -cpuprofile cpu.prof -c
+go tool pprof ./errors.test cpu.prof
+go test -benchmem -run=^$ -bench "^(BenchmarkNewCause1)$" github.com/lxt1045/errors -test.memprofilerate=1 -count=1 -v -memprofile mem.prof -c
+go tool pprof ./errors.test mem.prof
+*/
+func BenchmarkNewCause1(b *testing.B) {
+	b.Run("NewCause", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			NewCause(0, 0, errMsg)
+		}
+	})
+	b.Run("NewCause2", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			NewCause2(0, 0, errMsg)
+		}
+	})
+	b.Run("NewCause", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			NewCause(0, 0, errMsg)
+		}
+	})
+	b.Run("NewCause2", func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			NewCause2(0, 0, errMsg)
+		}
+	})
+}
+
+func Test_Xi(t *testing.T) {
+	m := make(map[*[DefaultDepth]uintptr]*callers)
+	a := [DefaultDepth]uintptr{
+		1: 222,
+		2: 333,
+	}
+	b := a
+	m[&a] = &callers{
+		attr: 88888,
+	}
+	fmt.Println(m[&a])
+	fmt.Println(m[&b])
+}
+
+func BenchmarkEscape(b *testing.B) {
+	b.Run("escape", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			pcs := [DefaultDepth]uintptr{}
+			_ = buildStack(pcs[:])
+		}
+	})
+	b.Run("escape-0", func(b *testing.B) {
+		pcs := [DefaultDepth]uintptr{}
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_ = buildStack(pcs[:])
+		}
+	})
+	b.Run("escape", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			pcs := pool.Get().(*[DefaultDepth]uintptr)
+			_ = buildStack(pcs[:])
+			pool.Put(pcs)
+		}
+	})
+	b.Run("pool", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			pcs := pool.Get().(*[DefaultDepth]uintptr)
+			pool.Put(pcs)
+		}
+	})
+
+	b.Run("not-escape", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			pcs := [DefaultDepth]uintptr{}
+			p := uintptr(unsafe.Pointer(&pcs))
+			pp := (*[DefaultDepth]uintptr)(unsafe.Pointer(p))[:]
+			_ = buildStack(pp)
+			runtime.KeepAlive(&pcs)
+		}
+	})
+}
+
 func BenchmarkNewCause(b *testing.B) {
 	runs := []struct {
 		funcName string //函数名字
@@ -191,39 +260,31 @@ func BenchmarkNewCause(b *testing.B) {
 	}{
 		{"runtime.Callers", func() {
 			pc := [DefaultDepth]uintptr{}
-			runtime.Callers(baseSkip, pc[:])
+			runtime.Callers(1, pc[:])
 		}},
 		{"lxt.NewCause", func() {
 			NewCause(0, 0, errMsg)
 		}},
+		{"lxt.NewCause2", func() {
+			NewCause2(0, 0, errMsg)
+		}},
 	}
+	depths := []int{1, 10, 100} //嵌套深度
 	for _, r := range runs {
-		name := fmt.Sprintf("%s-1", r.funcName)
-		b.Run(name, func(b *testing.B) {
-			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				r.f()
-			}
-			b.StopTimer()
-		})
-		name = fmt.Sprintf("%s-5", r.funcName)
-		b.Run(name, func(b *testing.B) {
-			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				func() {
-					func() {
-						func() {
-							func() {
-								func() {
-									r.f()
-								}()
-							}()
-						}()
-					}()
-				}()
-			}
-			b.StopTimer()
-		})
+		for _, depth := range depths {
+			name := fmt.Sprintf("%s-%d", r.funcName, depth)
+			b.Run(name, func(b *testing.B) {
+				b.StopTimer()
+				deepCall(depth, func() {
+					b.StartTimer()
+					b.ReportAllocs()
+					for i := 0; i < b.N; i++ {
+						r.f()
+					}
+					b.StopTimer()
+				})
+			})
+		}
 	}
 }
 
@@ -278,4 +339,45 @@ func equalStack(t *testing.T, expected, actual []uintptr) bool {
 		}
 	}
 	return true
+}
+
+//
+func BenchmarkNew(b *testing.B) {
+	runs := []struct {
+		funcName string //函数名字
+		f        func() //调用方法
+	}{
+		{"std.New", func() {
+			_ = stderrors.New("ye error")
+		}},
+		{"runtime.Caller", func() {
+			runtime.Caller(2)
+		}},
+		{"runtime.Callers", func() {
+			var pcs [DefaultDepth]uintptr
+			runtime.Callers(3, pcs[:])
+		}},
+		{"pkg.New", func() {
+			_ = pkgerrs.New("ye error")
+		}},
+		{"pkg.WithStack", func() {
+			_ = pkgerrs.WithStack(stderrors.New("ye error"))
+		}},
+		{"lxt.New", func() {
+			_ = New("ye error")
+		}},
+		{"lxt.NewErr", func() {
+			_ = NewErr(-1, "ye error")
+		}},
+	}
+	for _, r := range runs {
+		name := r.funcName
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for i := 0; i < b.N; i++ {
+				r.f() //nolint
+			}
+			b.StopTimer()
+		})
+	}
 }

@@ -3,33 +3,22 @@ package errors
 import (
 	"fmt"
 	"runtime"
-	"sync"
+	"sync/atomic"
+	"unsafe"
 )
 
 var (
-	mFrames    = make(map[uintptr]frame)
-	mFuncsLock sync.RWMutex
+	mFramesCache unsafe.Pointer = func() unsafe.Pointer {
+		m := make(map[uintptr]*frame)
+		return unsafe.Pointer(&m)
+	}()
 )
 
 type wrapper struct {
-	trace string
-	err   error
-	pc    [1]uintptr
-}
-
-func Wrap(err error, format string, a ...interface{}) error {
-	if err == nil {
-		return nil
-	}
-	if len(a) > 0 {
-		format = fmt.Sprintf(format, a...)
-	}
-	e := &wrapper{
-		trace: format,
-		err:   err,
-	}
-	runtime.Callers(1+baseSkip, e.pc[:])
-	return e
+	pc     [1]uintptr
+	err    error
+	format string
+	ifaces []interface{}
 }
 
 func (e *wrapper) Unwrap() error {
@@ -63,29 +52,43 @@ func (e *wrapper) Format(s fmt.State, verb rune) {
 	}
 }
 
-func (e *wrapper) parse() *frame {
-	mFuncsLock.RLock()
-	c, ok := mFrames[e.pc[0]]
-	mFuncsLock.RUnlock()
+func (e *wrapper) parse() (f *frame) {
+	mFC := *(*map[uintptr]*frame)(atomic.LoadPointer(&mFramesCache))
+	f, ok := mFC[e.pc[0]]
 	if !ok {
-		f, _ := runtime.CallersFrames(e.pc[:]).Next()
-		c.stack = toCaller(f).String()
-		l, yes := countEscape(c.stack)
-		c.attr = uint64(l) << 32
+		f = &frame{}
+		// file, n := runtime.FuncForPC(e.pc).FileLine(e.pc)
+		cf, _ := runtime.CallersFrames(e.pc[:]).Next()
+		f.stack = toCaller(cf).String()
+		l, yes := countEscape(f.stack)
+		f.attr = uint64(l) << 32
 		if yes {
-			c.attr |= 1
+			f.attr |= 1
 		}
 
-		mFuncsLock.Lock()
-		mFrames[e.pc[0]] = c
-		mFuncsLock.Unlock()
+		mFC2 := make(map[uintptr]*frame, len(mFC)+10)
+		mFC2[e.pc[0]] = f
+		for {
+			p := atomic.LoadPointer(&mFramesCache)
+			mFC = *(*map[uintptr]*frame)(p)
+			for k, v := range mFC {
+				mFC2[k] = v
+			}
+			swapped := atomic.CompareAndSwapPointer(&mFramesCache, p, unsafe.Pointer(&mFC2))
+			if swapped {
+				break
+			}
+		}
 	}
-
-	return &c
+	return f
 }
 
 func (e *wrapper) fmt() fmtWrapper {
-	return fmtWrapper{trace: e.trace, frame: e.parse()}
+	if len(e.ifaces) > 0 {
+		trace := fmt.Sprintf(e.format, e.ifaces...)
+		return fmtWrapper{trace: trace, frame: e.parse()}
+	}
+	return fmtWrapper{trace: e.format, frame: e.parse()}
 }
 
 type frame struct {

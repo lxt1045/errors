@@ -6,46 +6,42 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"unsafe"
 )
 
 const (
-	baseSkip     = 1
-	DefaultDepth = 31 // 默认构建的调用栈深度
+	baseSkip     = 2
+	DefaultDepth = 32 // 默认构建的调用栈深度
 )
+
+type stackCacheType = map[[DefaultDepth]uintptr]*callers
 
 var (
-	mStacks     = make(map[[DefaultDepth]uintptr]*callers)
-	mStacksLock sync.RWMutex
-)
+	mStackCache unsafe.Pointer = func() unsafe.Pointer {
+		m := make(stackCacheType)
+		return unsafe.Pointer(&m)
+	}()
 
-func NewCause(skip, code int, format string, a ...interface{}) (err *Cause) {
-	if len(a) > 0 {
-		format = fmt.Sprintf(format, a...)
+	pool = sync.Pool{
+		New: func() any { return &[DefaultDepth]uintptr{} },
 	}
-	err = &Cause{code: code, msg: format}
-	err.npc = runtime.Callers(skip+1+baseSkip, err.pcs[:])
-	return
-}
+)
 
 //CloneAs 利用 code 和 msg 生成一个包含当前stack的新Error,
 func CloneAs(e error, skips ...int) *Cause {
-	skip := 1 + baseSkip
+	skip := 1
 	if len(skips) > 0 {
 		skip += skips[0]
 	}
-	err := &Cause{}
-	err.code, err.msg = GetCodeMsg(e)
-	err.npc = runtime.Callers(1+baseSkip, err.pcs[:])
-	return err
+	code, msg := GetCodeMsg(e)
+	return NewCause(skip+1, code, msg)
 }
 
 func NewErr(code int, format string, a ...interface{}) error {
 	if len(a) > 0 {
 		format = fmt.Sprintf(format, a...)
 	}
-	err := &Cause{code: code, msg: format}
-	err.npc = runtime.Callers(1+baseSkip, err.pcs[:])
-	return err
+	return NewCause(1, code, format)
 }
 
 //New 替换 errors.New
@@ -53,17 +49,7 @@ func New(format string, a ...interface{}) error {
 	if len(a) > 0 {
 		format = fmt.Sprintf(format, a...)
 	}
-	err := &Cause{code: DefaultCode, msg: format}
-	/*
-		TODO:
-		可以通过asm的SP和BP拿列表,然后转成完整的pcs;
-		因为可能内联,所以asm拿到的列表中有的pc可能实际会对应n个pc
-		https://github.com/golang/go/blob/dev.boringcrypto.go1.18/src/runtime/traceback.go#L356
-		https://github.com/golang/go/blob/dev.boringcrypto.go1.18/src/runtime/traceback.go#L194里的
-		_func.funcFlag&funcFlag_TOPFRAME!=0  表示栈顶,不再继续执行,,,通过FuncForPC(pc)判断pc有效性?
-	*/
-	err.npc = runtime.Callers(1+baseSkip, err.pcs[:])
-	return err
+	return NewCause(1, DefaultCode, format)
 }
 
 //Errorf 替换 fmt.Errorf
@@ -71,24 +57,21 @@ func Errorf(format string, a ...interface{}) error {
 	if len(a) > 0 {
 		format = fmt.Sprintf(format, a...)
 	}
-	err := &Cause{code: DefaultCode, msg: format}
-	err.npc = runtime.Callers(1+baseSkip, err.pcs[:])
-	return err
+	return NewCause(1, DefaultCode, format)
 }
 
 type Cause struct {
 	msg  string //业务错误信息
 	code int    //业务错误码
 
-	npc int
-	pcs [DefaultDepth]uintptr
+	cache *callers
 }
 
 func (e *Cause) Code() int {
 	return e.code
 }
 
-func (e *Cause) Message() string {
+func (e *Cause) Msg() string {
 	return e.msg
 }
 
@@ -112,30 +95,6 @@ func (e *Cause) MarshalJSON() (bs []byte, err error) {
 	cache.json(buf)
 	return buf.Bytes(), nil
 }
-func (s *Cause) parse() (cs *callers) {
-	ok := false
-	mStacksLock.RLock()
-	cs, ok = mStacks[s.pcs]
-	mStacksLock.RUnlock()
-	if ok {
-		return
-	}
-	cs = &callers{}
-	cs.stack = parseSlow(s.pcs[:s.npc]) // 这步放在Lock()外虽然可能会造成重复计算,但是极大减少了锁争抢
-	l := 0
-	for i, str := range cs.stack {
-		lStack, yes := countEscape(str)
-		l += lStack
-		if yes {
-			cs.attr |= 1 << i
-		}
-	}
-	cs.attr |= uint64(l) << 32
-	mStacksLock.Lock()
-	mStacks[s.pcs] = cs
-	mStacksLock.Unlock()
-	return
-}
 func parseSlow(pcs []uintptr) (cs []string) {
 	traces, more, f := runtime.CallersFrames(pcs), true, runtime.Frame{}
 	for more {
@@ -152,7 +111,7 @@ func parseSlow(pcs []uintptr) (cs []string) {
 	return
 }
 func (e *Cause) fmt() (cs fmtCause) {
-	return fmtCause{code: strconv.Itoa(e.code), msg: e.msg, callers: e.parse()}
+	return fmtCause{code: strconv.Itoa(e.code), msg: e.msg, callers: e.cache}
 }
 
 type callers struct {
@@ -168,7 +127,6 @@ type fmtCause struct {
 
 func (f *fmtCause) jsonSize() (l int) {
 	l, f.msgEscape = countEscape(f.msg)
-	// l, f.msgEscape = len(f.msg)*11/10, true
 	l += len(f.code) + len(`{"code":,"msg":""}`)
 	if len(f.stack) == 0 {
 		return
@@ -179,7 +137,7 @@ func (f *fmtCause) jsonSize() (l int) {
 
 func (f *fmtCause) textSize() (l int) {
 	l = 2 + len(f.code) + len(f.msg)
-	if len(f.stack) == 0 {
+	if f.callers == nil || len(f.stack) == 0 {
 		return
 	}
 	l += len(f.stack)*7 - 3
@@ -223,7 +181,7 @@ func (f *fmtCause) text(buf *writeBuffer) {
 	buf.WriteString(f.code)
 	buf.WriteString(", ")
 	buf.WriteString(f.msg)
-	if len(f.stack) > 0 {
+	if f.callers != nil && len(f.stack) > 0 {
 		buf.WriteString(";\n")
 		for i, str := range f.stack {
 			if i != 0 {

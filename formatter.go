@@ -122,16 +122,16 @@ func marshalText(size int, buf *writeBuffer, err error) {
 func toCaller(f runtime.Frame) caller { // nolint:gocritic
 	funcName, file, line := f.Function, f.File, f.Line
 
-	// /xxx@v0.0.3-0.20211019092134-6247f1f99488/...
-	i := strings.Index(file, "@")
-	if i > 0 {
-		j := strings.Index(file[i+1:], pathSeparator)
-		if j > 0 {
-			file = file[:i] + file[i+1+j:]
-		}
-	}
+	// // /xxx@v0.0.3-0.20211019092134-6247f1f99488/...
+	// i := strings.Index(file, "@")
+	// if i > 0 {
+	// 	j := strings.Index(file[i+1:], pathSeparator)
+	// 	if j > 0 {
+	// 		file = file[:i] + file[i+1+j:]
+	// 	}
+	// }
 
-	i = strings.LastIndex(funcName, pathSeparator)
+	i := strings.LastIndex(funcName, pathSeparator)
 	if i > 0 {
 		rootDir := funcName[:i]
 		funcName = funcName[i+1:]

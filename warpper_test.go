@@ -6,11 +6,21 @@ import (
 	stderrs "errors"
 	"fmt"
 	"runtime"
+	"sync/atomic"
 	"testing"
 
 	pkgerrs "github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestWrap(t *testing.T) {
+	t.Run("NewLine", func(t *testing.T) {
+		err := NewLine("deep error")
+		err = Wrap(err, "test,s:%s, d:%d", "a", 1)
+		err = Wrap(err, "test3")
+		t.Logf("err:%+v", err)
+	})
+}
 
 func TestWarpNew(t *testing.T) {
 	err := stderrs.New(errMsg)
@@ -36,12 +46,13 @@ func Test_wrapper(t *testing.T) {
 	})
 	t.Run("Wrap.stderr", func(t *testing.T) {
 		pcs := [1]uintptr{}
-		_, e := runtime.Callers(baseSkip, pcs[:]), Wrap(err, errTrace).(*wrapper)
+		_, e := runtime.Callers(1, pcs[:]), Wrap(err, errTrace).(*wrapper)
 		f, _ := runtime.CallersFrames(pcs[:]).Next()
 		assert.Equal(t, e.parse().stack, toCaller(f).String())
 	})
 	t.Run("wrapper.parse.cache", func(t *testing.T) {
 		e := Wrap(err, errTrace).(*wrapper)
+		mFrames := *(*map[uintptr]*frame)(atomic.LoadPointer(&mFramesCache))
 		delete(mFrames, e.pc[0])
 		caller := e.parse()
 		cacheCaller := e.parse()
@@ -91,24 +102,32 @@ func Test_wrapper(t *testing.T) {
 		str := "msg!;\ntrace!,\n    (file1:88) func1;\ntrace!,\n    (file1:88) func1;"
 		assert.Equal(t, string(bs2), str)
 	})
-
 }
+
 func BenchmarkWrap(b *testing.B) {
 	runs := []struct {
 		funcName string                //函数名字
 		f        func(depth int) error //调用方法
 	}{
-		{"stdWrap", func(depth int) error {
+		{"NewLine", func(depth int) error {
 			err := errors.New(errMsg)
 			for i := 0; i < depth; i++ {
-				err = fmt.Errorf("%w", errors.New(errTrace))
+				err = NewLine("test,s:%s, d:%d", "a", 1)
 			}
 			return err
 		}},
 		{"Wrap", func(depth int) error {
 			err := errors.New(errMsg)
 			for i := 0; i < depth; i++ {
-				err = Wrap(err, errTrace)
+				// err = Wrap(err, errTrace)
+				err = Wrap(err, "test,s:%s, d:%d", "a", 1)
+			}
+			return err
+		}},
+		{"stdWrap", func(depth int) error {
+			err := errors.New(errMsg)
+			for i := 0; i < depth; i++ {
+				err = fmt.Errorf("%w", errors.New(errTrace))
 			}
 			return err
 		}},
@@ -120,7 +139,7 @@ func BenchmarkWrap(b *testing.B) {
 			return err
 		}},
 	}
-	depths := []int{1, 10} //嵌套深度
+	depths := []int{1, 10, 100} //嵌套深度
 	for _, r := range runs {
 		for _, depth := range depths {
 			name := fmt.Sprintf("%s-%d", r.funcName, depth)
