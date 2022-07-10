@@ -9,20 +9,11 @@ import (
 )
 
 func TestStd(t *testing.T) {
-	t.Run("GetCodeMsg.Cause", func(t *testing.T) {
+	t.Run("GetCodeMsg.Code", func(t *testing.T) {
 		err := NewErr(errCode, errMsg)
-		cause := err.(*Cause)
+		cause := err.(*Code)
 		assert.Equal(t, cause.Code(), errCode)
 		assert.Equal(t, cause.Msg(), errMsg)
-		code, msg := GetCodeMsg(err)
-		assert.Equal(t, code, errCode)
-		assert.Equal(t, msg, errMsg)
-	})
-	t.Run("GetCodeMsg.std", func(t *testing.T) {
-		err := stderrs.New(errMsg)
-		code, msg := GetCodeMsg(err)
-		assert.Equal(t, code, DefaultCode)
-		assert.Equal(t, msg, errMsg)
 	})
 	t.Run("Is.base", func(t *testing.T) {
 		err := NewErr(errCode, errMsg)

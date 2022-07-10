@@ -42,9 +42,9 @@ func TestMain(m *testing.M) {
 }
 
 func TestNew(t *testing.T) {
-	t.Run("NewCause", func(t *testing.T) {
+	t.Run("NewCode", func(t *testing.T) {
 		pcs := [DefaultDepth]uintptr{}
-		npc, e := runtime.Callers(1, pcs[:]), NewCause(0, errCode, errMsg)
+		npc, e := runtime.Callers(1, pcs[:]), NewCode(0, errCode, errMsg)
 		assert.Equal(t, e.Code(), errCode)
 		assert.Equal(t, e.Msg(), errMsg)
 		assert.True(t, len(e.cache.stack) > 0)
@@ -52,9 +52,9 @@ func TestNew(t *testing.T) {
 		assert.Equal(t, stack, e.cache.stack)
 	})
 
-	t.Run("NewCausef", func(t *testing.T) {
+	t.Run("NewCodef", func(t *testing.T) {
 		pcs := [DefaultDepth]uintptr{}
-		npc, e := runtime.Callers(1, pcs[:]), NewCause(0, errCode, errFormat, errMsg)
+		npc, e := runtime.Callers(1, pcs[:]), NewCode(0, errCode, errFormat, errMsg)
 		assert.Equal(t, e.Code(), errCode)
 		assert.Equal(t, e.Msg(), fmt.Sprintf(errFormat, errMsg))
 		assert.True(t, len(e.cache.stack) > 0)
@@ -64,7 +64,7 @@ func TestNew(t *testing.T) {
 
 	t.Run("Wrap", func(t *testing.T) {
 		pcs := [1]uintptr{}
-		err := NewCause(0, errCode, errFormat, errMsg)
+		err := NewCode(0, errCode, errFormat, errMsg)
 		_, e := runtime.Callers(1, pcs[:]), Wrap(err, errTrace)
 		// assert.Equal(t, e.Code(), errCode)
 		// assert.Equal(t, e.Msg(), fmt.Sprintf(errFormat, errMsg))
@@ -72,10 +72,10 @@ func TestNew(t *testing.T) {
 	})
 }
 
-func Test_Cause(t *testing.T) {
-	t.Run("NewCause", func(t *testing.T) {
+func Test_Code(t *testing.T) {
+	t.Run("NewCode", func(t *testing.T) {
 		pcs := [DefaultDepth]uintptr{}
-		npc, e := runtime.Callers(1, pcs[:]), NewCause(0, errCode, errMsg)
+		npc, e := runtime.Callers(1, pcs[:]), NewCode(0, errCode, errMsg)
 		assert.Equal(t, e.Code(), errCode)
 		assert.Equal(t, e.Msg(), errMsg)
 		assert.True(t, len(e.cache.stack) > 0)
@@ -84,15 +84,15 @@ func Test_Cause(t *testing.T) {
 	})
 
 	t.Run("Is", func(t *testing.T) {
-		err := NewCause(0, errCode, errMsg)
-		err1 := NewCause(0, errCode, errMsg)
+		err := NewCode(0, errCode, errMsg)
+		err1 := NewCode(0, errCode, errMsg)
 		assert.True(t, err.Is(err1))
-		err2 := NewCause(0, errCode+1, errMsg)
+		err2 := NewCode(0, errCode+1, errMsg)
 		assert.False(t, err.Is(err2))
 	})
 
 	t.Run("json", func(t *testing.T) {
-		c := NewCause(0, errCode, errMsg)
+		c := NewCode(0, errCode, errMsg)
 
 		bs1, err := c.MarshalJSON()
 		assert.Nil(t, err)
@@ -113,7 +113,7 @@ func Test_Cause(t *testing.T) {
 	})
 
 	t.Run("Error", func(t *testing.T) {
-		c := &Cause{
+		c := &Code{
 			code: errCode,
 			msg:  errMsg,
 			cache: &callers{
@@ -168,30 +168,27 @@ func Test_JSON(t *testing.T) {
 }
 
 /*
-go test -benchmem -run=^$ -bench "^(BenchmarkNewCause1)$" github.com/lxt1045/errors -count=1 -v -cpuprofile cpu.prof -c
+go test -benchmem -run=^$ -bench "^(BenchmarkNewCode1)$" github.com/lxt1045/errors -count=1 -v -cpuprofile cpu.prof -c
 go tool pprof ./errors.test cpu.prof
-go test -benchmem -run=^$ -bench "^(BenchmarkNewCause1)$" github.com/lxt1045/errors -test.memprofilerate=1 -count=1 -v -memprofile mem.prof -c
+go test -benchmem -run=^$ -bench "^(BenchmarkNewCode1)$" github.com/lxt1045/errors -test.memprofilerate=1 -count=1 -v -memprofile mem.prof -c
 go tool pprof ./errors.test mem.prof
 */
-func BenchmarkNewCause1(b *testing.B) {
-	b.Run("NewCause", func(b *testing.B) {
+func BenchmarkNewCode1(b *testing.B) {
+	b.Run("NewCode", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			NewCause(0, 0, errMsg)
+			NewCode(0, 0, errMsg)
 		}
 	})
-	b.Run("NewCause2", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			NewCause2(0, 0, errMsg)
-		}
+	b.Run("NewCode-32", func(b *testing.B) {
+		deepCall(32, func() {
+			for i := 0; i < b.N; i++ {
+				NewCode(0, 0, errMsg)
+			}
+		})
 	})
-	b.Run("NewCause", func(b *testing.B) {
+	b.Run("NewCodeSlow", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			NewCause(0, 0, errMsg)
-		}
-	})
-	b.Run("NewCause2", func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			NewCause2(0, 0, errMsg)
+			NewCodeSlow(0, 0, errMsg)
 		}
 	})
 }
@@ -253,7 +250,7 @@ func BenchmarkEscape(b *testing.B) {
 	})
 }
 
-func BenchmarkNewCause(b *testing.B) {
+func BenchmarkNewCode(b *testing.B) {
 	runs := []struct {
 		funcName string //函数名字
 		f        func() //调用方法
@@ -262,11 +259,8 @@ func BenchmarkNewCause(b *testing.B) {
 			pc := [DefaultDepth]uintptr{}
 			runtime.Callers(1, pc[:])
 		}},
-		{"lxt.NewCause", func() {
-			NewCause(0, 0, errMsg)
-		}},
-		{"lxt.NewCause2", func() {
-			NewCause2(0, 0, errMsg)
+		{"lxt.NewCode", func() {
+			NewCode(0, 0, errMsg)
 		}},
 	}
 	depths := []int{1, 10, 100} //嵌套深度
@@ -289,7 +283,7 @@ func BenchmarkNewCause(b *testing.B) {
 }
 
 func BenchmarkCaseMarshal(b *testing.B) {
-	err := NewCause(0, 0, errMsg)
+	err := NewCode(0, 0, errMsg)
 
 	b.Run("Error", func(b *testing.B) {
 		b.ReportAllocs()

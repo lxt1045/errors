@@ -1,3 +1,25 @@
+// MIT License
+//
+// Copyright (c) 2021 Xiantu Li
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 package errors
 
 import (
@@ -15,10 +37,36 @@ var (
 )
 
 type wrapper struct {
-	pc     [1]uintptr
-	err    error
-	format string
-	ifaces []interface{}
+	pc  [1]uintptr
+	err error
+	msg string
+}
+
+func WrapSlow(err error, format string, ifaces ...interface{}) error {
+	if err == nil {
+		return nil
+	}
+	if len(ifaces) > 0 {
+		format = fmt.Sprintf(format, ifaces...)
+	}
+	e := &wrapper{
+		err: err,
+		msg: format,
+	}
+	runtime.Callers(baseSkip, e.pc[:])
+	return e
+}
+
+func NewLineSlow(format string, ifaces ...interface{}) error {
+	if len(ifaces) > 0 {
+		format = fmt.Sprintf(format, ifaces...)
+	}
+	e := &wrapper{
+		err: nil,
+		msg: format,
+	}
+	runtime.Callers(baseSkip, e.pc[:])
+	return e
 }
 
 func (e *wrapper) Unwrap() error {
@@ -83,12 +131,26 @@ func (e *wrapper) parse() (f *frame) {
 	return f
 }
 
+var cacheWrapper = Cache[[1]uintptr, *frame]{
+	New: func(k [1]uintptr) (v *frame) {
+		f := &frame{}
+		cf, _ := runtime.CallersFrames(k[:]).Next()
+		f.stack = toCaller(cf).String()
+		l, yes := countEscape(f.stack)
+		f.attr = uint64(l) << 32
+		if yes {
+			f.attr |= 1
+		}
+		return f
+	},
+}
+
+func (e *wrapper) parse2() (f *frame) {
+	return cacheWrapper.Get(e.pc)
+}
+
 func (e *wrapper) fmt() fmtWrapper {
-	if len(e.ifaces) > 0 {
-		trace := fmt.Sprintf(e.format, e.ifaces...)
-		return fmtWrapper{trace: trace, frame: e.parse()}
-	}
-	return fmtWrapper{trace: e.format, frame: e.parse()}
+	return fmtWrapper{trace: e.msg, frame: e.parse()}
 }
 
 type frame struct {

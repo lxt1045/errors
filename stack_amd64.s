@@ -28,13 +28,6 @@
 #include "funcdata.h"
 
 
-// func GetDefer() uintptr
-TEXT ·GetG(SB),NOSPLIT,$0-8
-	MOVQ (TLS), R14
-	MOVQ R14, R13
-	MOVQ R13, ret+0(FP)
-	RET
-
 // func GetPC() uintptr
 TEXT ·GetPC(SB),NOSPLIT,$0-8
 	NO_LOCAL_POINTERS
@@ -66,3 +59,29 @@ return:
 	MOVQ	CX,n+24(FP) 	// ret n
 	RET
 
+
+// func getg() unsafe.Pointer
+TEXT ·Getg(SB), NOSPLIT, $0-8
+    MOVQ (TLS), AX
+	ADDQ ·gGoidOffset(SB),AX
+    MOVQ (AX), BX
+    MOVQ BX, ret+0(FP)
+    RET
+
+// func getgi() interface{}
+TEXT ·getgi(SB), NOSPLIT, $32-16
+    NO_LOCAL_POINTERS
+
+    MOVQ $0, ret_type+0(FP)
+    MOVQ $0, ret_data+8(FP)
+    GO_RESULTS_INITIALIZED
+
+    // get runtime.g
+    MOVQ (TLS), AX
+
+    // get runtime.g type
+    MOVQ $type·runtime·g(SB), BX
+    // return interface{}
+    MOVQ BX, ret_type+0(FP)
+    MOVQ AX, ret_data+8(FP)
+    RET

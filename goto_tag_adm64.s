@@ -27,72 +27,18 @@
 #include "textflag.h"
 #include "funcdata.h"
 
-// func Tag() error
-TEXT ·Tag(SB),NOSPLIT,$16-16
-	NO_LOCAL_POINTERS
-	MOVQ	$0, ret+0(FP)
-	MOVQ	$0, ret+8(FP)
-	GO_RESULTS_INITIALIZED
-	MOVQ	pc-8(FP), R13
-	MOVQ	R13, ·pc(SB)
-
-	MOVQ	R13, 0(SP)
-	CALL ·storeTag(SB)
-
-	RET
-
-
-
-// Tag 和 GotoTag 建没有插入调用怎没问题
-TEXT ·GotoTag(SB),NOSPLIT, $16-16
-	NO_LOCAL_POINTERS
-	MOVQ	pc-8(FP), R13
-	MOVQ	R13, 0(SP)
-	CALL ·loadTag(SB)
-
-	CMPQ	err+8(FP), $0 //type eface struct { _type *_type; data  unsafe.Pointer }
-	JHI	gototag
-	RET
-gototag:
-	// MOVQ	err+0(FP),R13  //err
-	// MOVQ	err+8(FP),R14  //err
-
-	// MOVQ	·pc(SB),CX  // get pc
-	MOVQ	8(SP), CX
-
-
-	// MOVQ	CX, 0(SP)
-	MOVQ	CX, retpc-8(FP)   // 因为 ·GotoTagx 和 ·Tagx 的栈结构是一样的，所以，，，
-	// MOVQ	R13, 8(SP)
-	// MOVQ	R14, 16(SP)
-	RET
-
-
-TEXT ·Jump1(SB),NOSPLIT, $0-24
-	NO_LOCAL_POINTERS
-
-	MOVQ	pc+0(FP), CX // retpc -> return addr
-
-	// MOVQ	CX, 0(SP)
-	MOVQ	CX, 8(BP)
-	MOVQ	pc+8(FP), CX 
-	MOVQ	$0, 16(BP)
-	MOVQ	CX, 24(BP)
-	MOVQ	pc+16(FP), CX 
-	MOVQ	CX, 32(BP)
-	RET
 
 // func NewTag2() (tag, error)
-// func Jump2(pc, parent uintptr, err error) uintptr
-TEXT ·Jump2(SB),NOSPLIT, $0-40
+// func tryJump(pc, parent uintptr, err error) uintptr
+TEXT ·tryJump(SB),NOSPLIT, $0-40
 	NO_LOCAL_POINTERS
 
-	MOVQ	(BP), R14	
+	MOVQ	(BP), R14	 // get parent
 	MOVQ	+8(R14), R13	
 	MOVQ	R13, ret+32(FP)
 	
 	// CMPQ	24(BP), R13
-	CMPQ	pc+8(FP), R13
+	CMPQ	pc+8(FP), R13  // parent 是否相等
 	JE	checkerr
 	RET
 checkerr:
@@ -112,41 +58,9 @@ gototag:
 	RET
 
 
-//func Jump(pc uintptr, err error)
-TEXT ·Jump(SB),NOSPLIT, $0-24
-	NO_LOCAL_POINTERS
 
-	MOVQ	pc+0(FP), CX // retpc -> return addr
-
-	// MOVQ	CX, 0(SP)
-	MOVQ	CX, 8(BP)
-	MOVQ	pc+8(FP), CX 
-	MOVQ	CX, 16(BP)
-	MOVQ	pc+16(FP), CX 
-	MOVQ	CX, 24(BP)
-	RET
-
-
-// func NewTag() (error, func(error))
-TEXT ·NewTag(SB),NOSPLIT,$16-24
-	NO_LOCAL_POINTERS
-	MOVQ	$0, ret+0(FP)
-	MOVQ	$0, ret+8(FP)
-	MOVQ	$0, ret+16(FP)
-	GO_RESULTS_INITIALIZED
-	MOVQ	pc-8(FP), R13
-	// MOVQ	R13, ·pc(SB)
-
-	MOVQ	R13, 0(SP)
-	CALL ·newTag(SB)
-	MOVQ	8(SP), R13
-	MOVQ	R13, ret+0(FP)
-
-	RET
-
-
-// func NewTag2() (tag, error)
-TEXT ·NewTag2(SB),NOSPLIT,$32-24
+// func NewTag() (tag, error)
+TEXT ·NewTag(SB),NOSPLIT,$32-24
 	NO_LOCAL_POINTERS
 	MOVQ	$0, ret+0(FP)  // 返回值清零
 	MOVQ	$0, ret+8(FP)

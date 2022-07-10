@@ -112,7 +112,7 @@ func BenchmarkWrap(b *testing.B) {
 		{"NewLine", func(depth int) error {
 			err := errors.New(errMsg)
 			for i := 0; i < depth; i++ {
-				err = NewLine("test,s:%s, d:%d", "a", 1)
+				err = NewLine("test,s:a, d:1")
 			}
 			return err
 		}},
@@ -120,7 +120,7 @@ func BenchmarkWrap(b *testing.B) {
 			err := errors.New(errMsg)
 			for i := 0; i < depth; i++ {
 				// err = Wrap(err, errTrace)
-				err = Wrap(err, "test,s:%s, d:%d", "a", 1)
+				err = NewLine("test,s:a, d:1")
 			}
 			return err
 		}},
@@ -154,9 +154,25 @@ func BenchmarkWrap(b *testing.B) {
 	}
 }
 
+func BenchmarkWrapperParse(b *testing.B) {
+	w := NewLine("test").(*wrapper)
+	b.Run("parse", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			w.parse()
+		}
+	})
+	b.Run("parse2", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			w.parse2()
+		}
+	})
+}
+
 func BenchmarkWrapperMarshal(b *testing.B) {
 	// TODO
-	var err error = NewCause(0, errCode, errMsg)
+	var err error = NewCode(0, errCode, errMsg)
 	for i := 0; i < 0; i++ {
 		err = Wrap(err, errTrace)
 	}

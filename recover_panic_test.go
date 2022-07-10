@@ -22,13 +22,13 @@ func Test_OKx0(t *testing.T) {
 		}
 	}()
 
-	err := NewCause(0, 0, "test")
+	err := NewCode(0, 0, "test")
 	TryEscape(err)
 }
 func Test_OKx2(t *testing.T) {
 	t.Run("panic", func(t *testing.T) {
 		assert.Panics(t, func() {
-			err := NewCause(0, 0, "test")
+			err := NewCode(0, 0, "test")
 			TryEscape(err)
 		})
 	})
@@ -41,7 +41,7 @@ func Test_OKx2(t *testing.T) {
 			}
 		}()
 
-		err := NewCause(0, 0, "test")
+		err := NewCode(0, 0, "test")
 		TryEscape(err)
 	})
 	t.Run("panic", func(t *testing.T) {
@@ -56,7 +56,7 @@ func Test_OKx2(t *testing.T) {
 			}
 		}()
 
-		err := NewCause(0, 0, "test")
+		err := NewCode(0, 0, "test")
 		TryEscape(err)
 	})
 }
@@ -68,7 +68,7 @@ go test -benchmem -run=^$ -bench "^(BenchmarkTryx)$" github.com/lxt1045/errors -
 go tool pprof ./errors.test mem.prof
 */
 func BenchmarkTryx(b *testing.B) {
-	errCauseNotNil := NewCause(0, errCode, errMsg)
+	errCodeNotNil := NewCode(0, errCode, errMsg)
 	type run struct {
 		funcName string       //函数名字
 		f        func() error //调用方法
@@ -83,18 +83,18 @@ func BenchmarkTryx(b *testing.B) {
 		}},
 		{"TryEscape(nil)", func() (err error) {
 			defer Catcher(NewGuard(), func(e interface{}) (ok bool) {
-				err, ok = e.(*Cause)
+				err, ok = e.(*Code)
 				return true
 			})
 			TryEscape(nil)
 			return
 		}},
-		{"TryEscape(errCauseNotNil)", func() (err error) {
+		{"TryEscape(errCodeNotNil)", func() (err error) {
 			defer Catcher(NewGuard(), func(e interface{}) (ok bool) {
-				err, ok = e.(*Cause)
+				err, ok = e.(*Code)
 				return true
 			})
-			TryEscape(errCauseNotNil)
+			TryEscape(errCodeNotNil)
 			return
 		}},
 	}
@@ -224,30 +224,4 @@ func BenchmarkPC(b *testing.B) {
 
 	// debug.PrintStack()
 
-}
-
-func TestGetDeferPC(t *testing.T) {
-	GetDeferPC()
-	GetDeferPC2()
-}
-
-func GetDeferPC() {
-	defer func() {
-
-	}()
-	var pc [1]uintptr
-	runtime.Callers(0, pc[:])
-
-	f := runtime.FuncForPC(pc[0])
-	fRaw := (*_func)(unsafe.Pointer(f))
-	fmt.Printf("%+v\n", fRaw)
-}
-
-func GetDeferPC2() {
-	var pc [1]uintptr
-	runtime.Callers(0, pc[:])
-
-	f := runtime.FuncForPC(pc[0])
-	fRaw := (*_func)(unsafe.Pointer(f))
-	fmt.Printf("%+v\n", fRaw)
 }

@@ -1,3 +1,25 @@
+// MIT License
+//
+// Copyright (c) 2021 Xiantu Li
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+
 package errors
 
 import (
@@ -38,8 +60,8 @@ func MarshalJSON(err error) (bs []byte) {
 //marshalJSON 递归 Unwrap 并序列化为 JSON 格式
 func marshalJSON(size int, buf *writeBuffer, err error) {
 	switch e := err.(type) {
-	//如果将 *wrapper 和 *Cause 合成一个 interface{} 分支, 将导致性能退化
-	case *Cause:
+	//如果将 *wrapper 和 *Code 合成一个 interface{} 分支, 将导致性能退化
+	case *Code:
 		cache := e.fmt()
 		buf.Grow(size + cache.jsonSize() + len(`{"cause":,"wrapper":[`))
 		buf.WriteString(`{"cause":`)
@@ -90,7 +112,7 @@ func MarshalText(err error) (bs []byte) {
 
 func marshalText(size int, buf *writeBuffer, err error) {
 	switch e := err.(type) {
-	case *Cause:
+	case *Code:
 		cache := e.fmt()
 		needSize := cache.textSize()
 		buf.Grow(size + needSize)
@@ -117,6 +139,11 @@ func marshalText(size int, buf *writeBuffer, err error) {
 		buf.WriteByte(';')
 	}
 	return
+}
+
+type caller struct {
+	File string
+	Func string
 }
 
 func toCaller(f runtime.Frame) caller { // nolint:gocritic
@@ -152,24 +179,27 @@ func toCaller(f runtime.Frame) caller { // nolint:gocritic
 	}
 
 	return caller{
-		File: file,
-		Line: line,
+		File: file + ":" + strconv.Itoa(line),
 		Func: funcName, // 获取函数名
 	}
 }
 
-type caller struct {
-	File string
-	Line int
-	Func string
+func toCallers(pcs []uintptr) (callers []caller) {
+	for f, i := runtime.CallersFrames(pcs), 0; ; i++ {
+		ff, more := f.Next()
+		callers = append(callers, toCaller(ff))
+		if !more {
+			break
+		}
+	}
+	return
 }
 
 func (c caller) String() (s string) {
 	if c.File == "" || c.Func == "" {
 		return ""
 	}
-	line := strconv.Itoa(c.Line)
-	return "(" + c.File + ":" + line + ") " + c.Func
+	return "(" + c.File + ") " + c.Func
 }
 
 func skipFile(f string) bool {
@@ -205,7 +235,7 @@ func marshalJSON2(size int, bs []byte, err error) []byte {
 		bs = append(bs, `{"cause":`...)
 		bs = cache.json2(bs)
 		bs = append(bs, `,"wrapper":[`...)
-	case *Cause:
+	case *Code:
 		cache := e.fmt()
 		if errInner != nil {
 			needSize := cache.jsonSize() + 1
@@ -259,7 +289,7 @@ func tryGrow(bs []byte, l int) []byte {
 	return bs
 }
 
-func (f *fmtCause) json2(bs []byte) []byte {
+func (f *fmtCode) json2(bs []byte) []byte {
 	bs = append(bs, `{"code":`...)
 	bs = append(bs, f.code...)
 	bs = append(bs, `,"msg":"`...)

@@ -148,7 +148,7 @@ func TestMarshalJSON(t *testing.T) {
 	for _, depth := range []int{1, 10} {
 		name := fmt.Sprintf("%s-%d", "MarshalJSON.wrapper", depth)
 		t.Run(name, func(t *testing.T) {
-			var err error = NewCause(0, errCode, errMsg)
+			var err error = NewCode(0, errCode, errMsg)
 			for i := 0; i < depth; i++ {
 				err = Wrap(err, fmt.Sprintf("%d", i))
 				err = Wrap(err, fmt.Sprintf("%d", i*1000))
@@ -211,7 +211,7 @@ go tool pprof ./errors.test mem.prof
 web
 */
 func BenchmarkMarshal(b *testing.B) {
-	var err error = NewCause(0, errCode, errMsg+"awesrdtfghjklsajghfdjkshdhgagdkaskdhakhkj")
+	var err error = NewCode(0, errCode, errMsg+"awesrdtfghjklsajghfdjkshdhgagdkaskdhakhkj")
 	for i := 0; i < 0; i++ {
 		err = Wrap(err, errTrace)
 	}
@@ -269,7 +269,7 @@ func Benchmark_JSON(b *testing.B) {
 	for _, depth := range []int{1, 10} {
 		name := fmt.Sprintf("%s-%d", "MarshalJSON", depth)
 		b.Run(name, func(b *testing.B) {
-			var err error = NewCause(0, errCode, errMsg)
+			var err error = NewCode(0, errCode, errMsg)
 			for i := 0; i < depth; i++ {
 				err = Wrap(err, errTrace)
 			}
@@ -293,7 +293,7 @@ func BenchmarkFormatting(b *testing.B) {
 		for i := range stdErrs {
 			stdErrs[i] = errors.New(errMsg)
 			pkgErrs[i] = pkgerrs.New(errMsg)
-			lxtErrs[i] = NewCause(0, errCode, errMsg)
+			lxtErrs[i] = NewCode(0, errCode, errMsg)
 			for j := 0; j < depth; j++ {
 				stdErrs[i] = fmt.Errorf("%w; %s", stdErrs[i], errTrace)
 				pkgErrs[i] = pkgerrs.Wrap(pkgErrs[i], errTrace)
@@ -385,14 +385,14 @@ func BenchmarkNewAndFormatting(b *testing.B) {
 			stdText(err)
 		}},
 		{lxt, "text", func(depth int) {
-			var err error = NewCause(0, errCode, errMsg)
+			var err error = NewCode(0, errCode, errMsg)
 			for j := 0; j < depth; j++ {
 				err = Wrap(err, errTrace)
 			}
 			MarshalText(err)
 		}},
 		{lxt, "json", func(depth int) {
-			var err error = NewCause(0, errCode, errMsg)
+			var err error = NewCode(0, errCode, errMsg)
 			for j := 0; j < depth; j++ {
 				err = Wrap(err, errTrace)
 			}
