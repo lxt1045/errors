@@ -1,13 +1,31 @@
 package errors
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 )
 
-var pc uintptr
-
 func TestTagTry(t *testing.T) {
+	t.Run("NewLine1", func(t *testing.T) {
+	gototag:
+		defer func() {
+			fmt.Printf("2")
+		}()
+		tag, err1 := NewTag() // 当 tag.Try(err) 时，跳转此处并返回 err1
+		if err1 != nil {
+			return
+		}
+		defer func() {
+			fmt.Printf("1")
+		}()
+		err := errors.New("err")
+		tag.Try(err)
+
+		return
+		goto gototag
+	})
+	return
 	t.Run("NewLine", func(t *testing.T) {
 		func() {
 			defer func() {
@@ -27,6 +45,9 @@ func TestTagTry(t *testing.T) {
 					// tag.Try(err3)
 					return
 				}
+				defer func() {
+					t.Log("inner defer 2")
+				}()
 				t.Log("2")
 				err3 := fmt.Errorf("error 3")
 				// GotoTag(err3)
@@ -47,8 +68,6 @@ func TestTagTry(t *testing.T) {
 		}()
 	})
 }
-
-var err3 = fmt.Errorf("error 3")
 
 func BenchmarkTag(b *testing.B) {
 	err3 := fmt.Errorf("error 3")

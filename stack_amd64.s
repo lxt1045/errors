@@ -42,14 +42,15 @@ TEXT ·buildStack(SB), NOSPLIT, $24-8
 	NO_LOCAL_POINTERS
 	MOVQ 	cap+16(FP), DX 	// s.cap
 	MOVQ 	p+0(FP), AX		// s.ptr
-	MOVQ	$0, CX			// loop.i
+	MOVQ	$0, CX			// loop.i=0
 loop:
+	CMPQ	CX, DX			// if i >= s.cap { return }
+	JAE	return				// 无符号大于等于就跳转
+
 	MOVQ	+8(BP), BX		// last pc -> BX
 	MOVQ	BX, 0(AX)(CX*8)		// s[i] = BX
 	
 	ADDQ	$1, CX			// CX++ / i++
-	CMPQ	CX, DX			// if s.len >= s.cap { return }
-	JAE	return				// 无符号大于等于就跳转
 
 	MOVQ	+0(BP), BP 		// last BP; 展开调用栈至上一层
 	CMPQ	BP, $0 			// if (BP) <= 0 { return }
@@ -58,6 +59,36 @@ loop:
 return:
 	MOVQ	CX,n+24(FP) 	// ret n
 	RET
+
+
+
+// func buildStack(s []uintptr) int
+TEXT ·buildStack2(SB), NOSPLIT, $24-8
+	NO_LOCAL_POINTERS
+	MOVQ 	cap+16(FP), DX 	// s.cap
+	MOVQ 	p+0(FP), AX		// s.ptr
+	MOVQ	$0, CX			// loop.i
+
+	CMPQ	DX, $1			// if s.cap<=0 { return }
+	JL	return				// 有符号大于等于就跳转
+	MOVQ	pc-8(FP),BX
+	MOVQ	BX, 0(AX)(CX*8)	
+loop:
+	ADDQ	$1, CX			// CX++ / i++
+	CMPQ	CX, DX			// if s.len >= s.cap { return }
+	JAE	return				// 无符号大于等于就跳转
+
+	MOVQ	+8(BP), BX		// last pc -> BX
+	MOVQ	BX, 0(AX)(CX*8)		// s[i] = BX
+	
+	MOVQ	+0(BP), BP 		// last BP; 展开调用栈至上一层
+	CMPQ	BP, $0 			// if (BP) <= 0 { return }
+	JA loop					// 无符号大于就跳转
+
+return:
+	MOVQ	CX,n+24(FP) 	// ret n
+	RET
+
 
 
 // func getg() unsafe.Pointer

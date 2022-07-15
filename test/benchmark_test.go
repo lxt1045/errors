@@ -31,11 +31,11 @@ func lxtNew(at, depth int) error {
 	return lxtNew(at+1, depth)
 }
 
-func NewCause(at, depth int) error {
+func NewCode(at, depth int) error {
 	if at >= depth {
-		return lxterrs.NewCause(0, 0, "ye error")
+		return lxterrs.NewCode(0, 0, "ye error")
 	}
-	return NewCause(at+1, depth)
+	return NewCode(at+1, depth)
 }
 
 // GlobalE is an exported global to store the result of benchmark results,
@@ -54,8 +54,8 @@ func BenchmarkNew(b *testing.B) {
 		{"lxtNew", func(at, depth int) error {
 			return lxtNew(at, depth)
 		}},
-		{"NewCause", func(at, depth int) error {
-			return NewCause(at, depth)
+		{"NewCode", func(at, depth int) error {
+			return NewCode(at, depth)
 		}},
 		{"pkgNew", func(at, depth int) error {
 			return pkgNew(at, depth)
@@ -111,4 +111,48 @@ func BenchmarkFormatting(b *testing.B) {
 			})
 		}
 	}
+}
+
+//
+func deepCall(depth int, f func()) {
+	if depth <= 0 {
+		f()
+		return
+	}
+	deepCall(depth-1, f)
+}
+func BenchmarkPkg(b *testing.B) {
+	b.Run("pkg/errors", func(b *testing.B) {
+		b.ReportAllocs()
+		var err error
+		deepCall(10, func() {
+			for i := 0; i < b.N; i++ {
+				err = pkgerrs.New("ye error")
+				GlobalE = fmt.Sprintf("%+v", err)
+			}
+			b.StopTimer()
+		})
+	})
+	b.Run("stderrors-Sprintf", func(b *testing.B) {
+		b.ReportAllocs()
+		var err error
+		deepCall(10, func() {
+			for i := 0; i < b.N; i++ {
+				err = stderrs.New("ye error")
+				GlobalE = fmt.Sprintf("%+v", err)
+			}
+			b.StopTimer()
+		})
+	})
+	b.Run("stderrors", func(b *testing.B) {
+		b.ReportAllocs()
+		var err error
+		deepCall(10, func() {
+			for i := 0; i < b.N; i++ {
+				err = stderrs.New("ye error")
+				GlobalE = err.Error()
+			}
+			b.StopTimer()
+		})
+	})
 }

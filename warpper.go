@@ -131,7 +131,7 @@ func (e *wrapper) parse() (f *frame) {
 	return f
 }
 
-var cacheWrapper = Cache[[1]uintptr, *frame]{
+var cacheWrapper = AtomicCache[[1]uintptr, *frame]{
 	New: func(k [1]uintptr) (v *frame) {
 		f := &frame{}
 		cf, _ := runtime.CallersFrames(k[:]).Next()
@@ -187,7 +187,6 @@ func (f *fmtWrapper) json(buf *writeBuffer) {
 		buf.WriteEscape(f.stack)
 	}
 	buf.WriteString(`"}`)
-	return
 }
 
 func (f *fmtWrapper) text(buf *writeBuffer) {
@@ -195,5 +194,4 @@ func (f *fmtWrapper) text(buf *writeBuffer) {
 	buf.WriteString(",\n    ")
 	buf.WriteString(f.stack)
 	buf.WriteByte(';')
-	return
 }

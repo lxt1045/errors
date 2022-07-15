@@ -101,7 +101,6 @@ func marshalJSON(size int, buf *writeBuffer, err error) {
 		}
 		buf.WriteString(`","wrapper":[`)
 	}
-	return
 }
 
 func MarshalText(err error) (bs []byte) {
@@ -138,7 +137,6 @@ func marshalText(size int, buf *writeBuffer, err error) {
 		buf.WriteString(cache)
 		buf.WriteByte(';')
 	}
-	return
 }
 
 type caller struct {
@@ -180,7 +178,7 @@ func toCaller(f runtime.Frame) caller { // nolint:gocritic
 
 	return caller{
 		File: file + ":" + strconv.Itoa(line),
-		Func: funcName, // 获取函数名
+		Func: funcName,
 	}
 }
 

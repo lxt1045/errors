@@ -27,12 +27,12 @@ package errors
 
 import (
 	"fmt"
-	_ "unsafe"
+	_ "unsafe" //nolint:bgolint
 )
 
 var tryTagErr func(error)
 
-func NewTag() (tag, error)
+func NewTag() (tag, error) //nolint:bgolint
 
 func tryJump(pc, parent uintptr, err error) uintptr
 
@@ -41,6 +41,7 @@ type tag struct {
 	parent uintptr
 }
 
+//go:noinline
 func (t tag) Try(err error) {
 	//还是要加上检查，否则报错信息太难看
 	// 但是检查时只要检查 更上一级的 PC 是否相等即可，不需要复杂的 map 存储了！！！
@@ -56,6 +57,6 @@ func (t tag) Try(err error) {
 			tryTagErr(e)
 			return
 		}
-		panic(err)
+		panic(e)
 	}
 }

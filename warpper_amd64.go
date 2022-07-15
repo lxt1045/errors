@@ -27,7 +27,7 @@ package errors
 
 import (
 	"fmt"
-	_ "unsafe"
+	_ "unsafe" //nolint:bgolint
 )
 
 //go:noinline

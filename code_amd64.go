@@ -12,16 +12,21 @@ func NewCode(skip, code int, format string, a ...interface{}) (c *Code) {
 	if len(a) > 0 {
 		format = fmt.Sprintf(format, a...)
 	}
-	c = &Code{code: code, msg: format}
+	c = &Code{code: code, msg: format, skip: skip}
 	pcs := pool.Get().(*[DefaultDepth]uintptr)
+	for i := range pcs {
+		pcs[i] = 0
+	}
 	n := buildStack(pcs[:])
-	key := toString(pcs[:n])
+	for i := n; i < DefaultDepth; i++ {
+		pcs[i] = 0
+	}
 
 	//
-	cs := cacheStack.Get(key)
+	cs := cacheStack.Get(*pcs)
 	if cs == nil {
 		pcs1 := make([]uintptr, DefaultDepth)
-		npc1 := runtime.Callers(skip+baseSkip, pcs1[:DefaultDepth-skip])
+		npc1 := runtime.Callers(baseSkip, pcs1[:DefaultDepth])
 		cs = &callers{}
 		cs.stack = parseSlow(pcs1[:npc1])
 		l := 0
@@ -35,7 +40,7 @@ func NewCode(skip, code int, format string, a ...interface{}) (c *Code) {
 		}
 		cs.attr |= uint64(l) << 32
 
-		cacheStack.Set(key, cs)
+		cacheStack.Set(*pcs, cs)
 	}
 	pool.Put(pcs)
 	c.cache = cs

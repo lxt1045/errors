@@ -45,7 +45,7 @@ type guard struct {
 }
 
 //go:noinline
-func NewGuard() guard {
+func NewGuard() guard { //nolint:bgolint
 	gid := Getg()
 	lockRoutineDefer.Lock()
 	_, ok := mRoutineLastDefer[gid]
@@ -60,7 +60,7 @@ func NewGuard() guard {
 	}
 }
 
-func Catcher(g guard, f func(err interface{}) bool) { //nolint:govet
+func Catch(g guard, f func(err interface{}) bool) { //nolint:govet
 	if g.own {
 		lockRoutineDefer.Lock()
 		delete(mRoutineLastDefer, g.gid)
@@ -77,14 +77,14 @@ func Catcher(g guard, f func(err interface{}) bool) { //nolint:govet
 	panic(e)
 }
 
-func TryEscape(err *Code) {
+func Try(err *Code) {
 	gid := Getg()
 	lockRoutineDefer.Lock()
-	_, own := mRoutineLastDefer[gid]
+	_, ok := mRoutineLastDefer[gid]
 	lockRoutineDefer.Unlock()
-	if !own {
+	if !ok {
 		cs := toCallers([]uintptr{GetPC()[0]})
-		e := fmt.Errorf("should call defer Catcher(NewGuard(),func()bool before call TryEscape(err)); file:%s",
+		e := fmt.Errorf("should call defer Catch(NewGuard(),func()bool before call Try(err)); file:%s",
 			cs[0].File)
 		if err != nil {
 			e = fmt.Errorf("%w; %+v", err, e)
@@ -93,7 +93,7 @@ func TryEscape(err *Code) {
 			tryEscapeErr(e)
 			return
 		}
-		panic(err)
+		panic(e)
 	}
 	if err != nil {
 		panic(err)

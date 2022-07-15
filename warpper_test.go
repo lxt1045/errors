@@ -20,6 +20,14 @@ func TestWrap(t *testing.T) {
 		err = Wrap(err, "test3")
 		t.Logf("err:%+v", err)
 	})
+	t.Run("NewCode", func(t *testing.T) {
+		deepCall(3, func() {
+			err := NewErr(1, "error1")
+			err = Wrap(err, "error2")
+			err = Wrap(err, "error3")
+			t.Logf("err:%+v", err)
+		})
+	})
 }
 
 func TestWarpNew(t *testing.T) {
@@ -36,6 +44,7 @@ func TestWarpNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	t.Log(string(bs))
 }
 

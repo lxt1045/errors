@@ -28,7 +28,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"unsafe"
 )
 
 const (
@@ -37,23 +36,12 @@ const (
 )
 
 var (
-	// cacheStack  = AtomicCache[string, *callers]{}
-	cacheStack = Cache[string, *callers]{}
+	cacheStack = AtomicCache[[DefaultDepth]uintptr, *callers]{}
 
 	pool = sync.Pool{
 		New: func() any { return &[DefaultDepth]uintptr{} },
 	}
 )
-
-func toString(p []uintptr) string {
-	bs := (*[DefaultDepth * 8]byte)(unsafe.Pointer(&p[0]))[:len(p)*8]
-	return *(*string)(unsafe.Pointer(&bs))
-}
-func fromString(str string) (p []uintptr) {
-	bs := *(*[]byte)(unsafe.Pointer(&str))
-	p = (*[DefaultDepth]uintptr)(unsafe.Pointer(&bs[0]))[:len(str)/8]
-	return
-}
 
 func NewCodeSlow(skip, code int, format string, a ...interface{}) (c *Code) {
 	if len(a) > 0 {
@@ -63,9 +51,9 @@ func NewCodeSlow(skip, code int, format string, a ...interface{}) (c *Code) {
 
 	pcs := pool.Get().(*[DefaultDepth]uintptr)
 	n := runtime.Callers(skip+baseSkip, pcs[:DefaultDepth-skip])
-	key := toString(pcs[:n])
+	// key := toString(pcs[:n])
 
-	cs := cacheStack.Get(key)
+	cs := cacheStack.Get(*pcs)
 	if cs == nil {
 		cs = &callers{}
 		cs.stack = parseSlow(pcs[:n])
@@ -81,7 +69,7 @@ func NewCodeSlow(skip, code int, format string, a ...interface{}) (c *Code) {
 		cs.attr |= uint64(l) << 32
 
 		// 加入
-		cacheStack.Set(key, cs)
+		cacheStack.Set(*pcs, cs)
 	}
 	pool.Put(pcs)
 	c.cache = cs
@@ -128,6 +116,7 @@ type Code struct {
 	code int    //业务错误码
 
 	cache *callers
+	skip  int
 }
 
 func (e *Code) Code() int {
@@ -174,7 +163,7 @@ func parseSlow(pcs []uintptr) (cs []string) {
 	return
 }
 func (e *Code) fmt() (cs fmtCode) {
-	return fmtCode{code: strconv.Itoa(e.code), msg: e.msg, callers: e.cache}
+	return fmtCode{code: strconv.Itoa(e.code), msg: e.msg, callers: e.cache, skip: e.skip}
 }
 
 type callers struct {
@@ -184,6 +173,7 @@ type callers struct {
 type fmtCode struct {
 	code      string
 	msg       string
+	skip      int
 	msgEscape bool
 	*callers
 }
@@ -191,20 +181,20 @@ type fmtCode struct {
 func (f *fmtCode) jsonSize() (l int) {
 	l, f.msgEscape = countEscape(f.msg)
 	l += len(f.code) + len(`{"code":,"msg":""}`)
-	if len(f.stack) == 0 {
+	if len(f.stack) <= f.skip {
 		return
 	}
-	l += len(`,"stack":[]`) + len(f.stack)*len(`,""`) - len(`,`) + (int(f.attr) >> 32)
+	l += len(`,"stack":[]`) + (len(f.stack)-f.skip)*len(`,""`) - len(`,`) + (int(f.attr) >> 32)
 	return
 }
 
 func (f *fmtCode) textSize() (l int) {
-	l = 2 + len(f.code) + len(f.msg)
-	if f.callers == nil || len(f.stack) == 0 {
+	l = len(", ") + len(f.code) + len(f.msg)
+	if f.callers == nil || len(f.stack) <= f.skip {
 		return
 	}
-	l += len(f.stack)*7 - 3
-	for _, str := range f.stack {
+	l += (len(f.stack) - f.skip) * len(", \n    ")
+	for _, str := range f.stack[f.skip:] {
 		l += len(str) + 3
 	}
 	return
@@ -220,9 +210,9 @@ func (f *fmtCode) json(buf *writeBuffer) {
 		buf.WriteEscape(f.msg)
 	}
 	buf.WriteByte('"')
-	if len(f.stack) > 0 {
+	if len(f.stack) > f.skip {
 		buf.WriteString(`,"stack":[`)
-		for i, str := range f.stack {
+		for i, str := range f.stack[f.skip:] {
 			if i != 0 {
 				buf.WriteByte(',')
 			}
@@ -237,16 +227,15 @@ func (f *fmtCode) json(buf *writeBuffer) {
 		buf.WriteByte(']')
 	}
 	buf.WriteByte('}')
-	return
 }
 
 func (f *fmtCode) text(buf *writeBuffer) {
 	buf.WriteString(f.code)
 	buf.WriteString(", ")
 	buf.WriteString(f.msg)
-	if f.callers != nil && len(f.stack) > 0 {
+	if f.callers != nil && len(f.stack) > f.skip {
 		buf.WriteString(";\n")
-		for i, str := range f.stack {
+		for i, str := range f.stack[f.skip:] {
 			if i != 0 {
 				buf.WriteString(", \n")
 			}
@@ -255,5 +244,4 @@ func (f *fmtCode) text(buf *writeBuffer) {
 		}
 		buf.WriteByte(';')
 	}
-	return
 }

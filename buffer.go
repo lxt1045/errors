@@ -49,7 +49,7 @@ type writeBuffer struct {
 	buf []byte
 }
 
-func NewWriteBuffer(n int) (buf *writeBuffer) {
+func NewWriteBuffer(n int) (buf *writeBuffer) { //nolint:bgolint
 	return &writeBuffer{
 		buf: make([]byte, 0, n),
 	}
@@ -72,7 +72,6 @@ func (buf *writeBuffer) Grow(n int) {
 	bs := buf.buf
 	buf.buf = make([]byte, len(bs), n+len(bs))
 	copy(buf.buf, bs)
-	return
 }
 func (buf *writeBuffer) Write(p []byte) {
 	buf.buf = append(buf.buf, p...)
@@ -139,7 +138,6 @@ func (buf *writeBuffer) WriteEscape(src string) {
 	if start < len(src) {
 		buf.WriteString(src[start:])
 	}
-	return
 }
 
 func countEscape(str string) (l int, escape bool) {

@@ -27,7 +27,7 @@ package errors
 
 import (
 	"reflect"
-	_ "unsafe"
+	_ "unsafe" //nolint:bgolint
 )
 
 func GetPC() [1]uintptr
@@ -38,7 +38,7 @@ func Getg() int64
 
 func getgi() interface{}
 
-var gGoidOffset uintptr = func() uintptr {
+var gGoidOffset uintptr = func() uintptr { //nolint
 	g := getgi()
 	if f, ok := reflect.TypeOf(g).FieldByName("goid"); ok {
 		return f.Offset

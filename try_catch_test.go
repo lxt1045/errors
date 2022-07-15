@@ -14,7 +14,7 @@ import (
 )
 
 func Test_OKx0(t *testing.T) {
-	defer Catcher(NewGuard(), nil)
+	defer Catch(NewGuard(), nil)
 	defer func() {
 		e := recover()
 		if e != nil {
@@ -23,17 +23,17 @@ func Test_OKx0(t *testing.T) {
 	}()
 
 	err := NewCode(0, 0, "test")
-	TryEscape(err)
+	Try(err)
 }
 func Test_OKx2(t *testing.T) {
 	t.Run("panic", func(t *testing.T) {
 		assert.Panics(t, func() {
 			err := NewCode(0, 0, "test")
-			TryEscape(err)
+			Try(err)
 		})
 	})
 	t.Run("panic", func(t *testing.T) {
-		defer Catcher(NewGuard(), nil)
+		defer Catch(NewGuard(), nil)
 		defer func() {
 			e := recover()
 			if e != nil {
@@ -42,10 +42,10 @@ func Test_OKx2(t *testing.T) {
 		}()
 
 		err := NewCode(0, 0, "test")
-		TryEscape(err)
+		Try(err)
 	})
 	t.Run("panic", func(t *testing.T) {
-		defer Catcher(NewGuard(), func(interface{}) bool {
+		defer Catch(NewGuard(), func(interface{}) bool {
 			t.Log("sssssss")
 			return true
 		})
@@ -57,7 +57,7 @@ func Test_OKx2(t *testing.T) {
 		}()
 
 		err := NewCode(0, 0, "test")
-		TryEscape(err)
+		Try(err)
 	})
 }
 
@@ -81,20 +81,20 @@ func BenchmarkTryx(b *testing.B) {
 			goid.Get()
 			return
 		}},
-		{"TryEscape(nil)", func() (err error) {
-			defer Catcher(NewGuard(), func(e interface{}) (ok bool) {
+		{"Try(nil)", func() (err error) {
+			defer Catch(NewGuard(), func(e interface{}) (ok bool) {
 				err, ok = e.(*Code)
 				return true
 			})
-			TryEscape(nil)
+			Try(nil)
 			return
 		}},
-		{"TryEscape(errCodeNotNil)", func() (err error) {
-			defer Catcher(NewGuard(), func(e interface{}) (ok bool) {
+		{"Try(errCodeNotNil)", func() (err error) {
+			defer Catch(NewGuard(), func(e interface{}) (ok bool) {
 				err, ok = e.(*Code)
 				return true
 			})
-			TryEscape(errCodeNotNil)
+			Try(errCodeNotNil)
 			return
 		}},
 	}
@@ -103,7 +103,7 @@ func BenchmarkTryx(b *testing.B) {
 		b.Run(r.funcName, func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				r.f()
+				_ = r.f()
 			}
 			b.StopTimer()
 		})

@@ -1,9 +1,11 @@
 package errors
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"strconv"
 	"testing"
 	"unsafe"
 
@@ -21,16 +23,11 @@ const (
 )
 
 var (
-	testPCs = [DefaultDepth]uintptr{
-		0: 189989,
-	}
 	testFrame     = [1]uintptr{189989}
 	testFrameFunc = "(file1:88) func1"
 )
 
 func TestMain(m *testing.M) {
-	// mStacks[testPCs] = &callers{stack: []string{testFrameFunc}, attr: uint64(len(testFrame) << 32)}
-
 	// mFrames[testFrame[0]] = frame{stack: testFrameFunc, attr: uint64(len(testFrameFunc)) << 32}
 	mFramesCache = func() unsafe.Pointer {
 		m := map[uintptr]*frame{
@@ -42,21 +39,21 @@ func TestMain(m *testing.M) {
 }
 
 func TestNew(t *testing.T) {
-	t.Run("NewCode", func(t *testing.T) {
-		pcs := [DefaultDepth]uintptr{}
-		npc, e := runtime.Callers(1, pcs[:]), NewCode(0, errCode, errMsg)
-		assert.Equal(t, e.Code(), errCode)
-		assert.Equal(t, e.Msg(), errMsg)
-		assert.True(t, len(e.cache.stack) > 0)
-		stack := parseSlow(pcs[:npc])
-		assert.Equal(t, stack, e.cache.stack)
-	})
-
 	t.Run("NewCodef", func(t *testing.T) {
 		pcs := [DefaultDepth]uintptr{}
 		npc, e := runtime.Callers(1, pcs[:]), NewCode(0, errCode, errFormat, errMsg)
 		assert.Equal(t, e.Code(), errCode)
 		assert.Equal(t, e.Msg(), fmt.Sprintf(errFormat, errMsg))
+		assert.True(t, len(e.cache.stack) > 0)
+		stack := parseSlow(pcs[:npc])
+		assert.Equal(t, stack, e.cache.stack)
+	})
+
+	t.Run("NewCode", func(t *testing.T) {
+		pcs := [DefaultDepth]uintptr{}
+		npc, e := runtime.Callers(1, pcs[:]), NewCode(0, errCode, errMsg)
+		assert.Equal(t, e.Code(), errCode)
+		assert.Equal(t, e.Msg(), errMsg)
 		assert.True(t, len(e.cache.stack) > 0)
 		stack := parseSlow(pcs[:npc])
 		assert.Equal(t, stack, e.cache.stack)
@@ -129,17 +126,18 @@ func Test_Code(t *testing.T) {
 }
 
 func Test_Text(t *testing.T) {
-	ferr1 := func() error {
-		err := NewErr(1600002, "message ferr1")
-		return err
-	}
-	ferr2 := func() error {
-		err := ferr1()
-		err = Wrap(err, "log ferr2")
-		return err
-	}
-	err := ferr2()
-	fmt.Printf("c:%[1]c,\nv:%[1]v,\n+v:%+[1]v\nq:%[1]q\n", err)
+	t.Run("NewCode", func(t *testing.T) {
+		deepCall(3, func() {
+			err := NewCode(0, errCode, errFormat, errMsg)
+			t.Log(err.Error())
+		})
+	})
+	t.Run("pkg/error", func(t *testing.T) {
+		deepCall(3, func() {
+			err := pkgerrs.WithStack(stderrors.New("test error"))
+			t.Logf("%+v", err)
+		})
+	})
 }
 
 //*/
@@ -176,19 +174,19 @@ go tool pprof ./errors.test mem.prof
 func BenchmarkNewCode1(b *testing.B) {
 	b.Run("NewCode", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			NewCode(0, 0, errMsg)
+			_ = NewCode(0, 0, errMsg)
 		}
 	})
 	b.Run("NewCode-32", func(b *testing.B) {
 		deepCall(32, func() {
 			for i := 0; i < b.N; i++ {
-				NewCode(0, 0, errMsg)
+				_ = NewCode(0, 0, errMsg)
 			}
 		})
 	})
 	b.Run("NewCodeSlow", func(b *testing.B) {
 		for i := 0; i < b.N; i++ {
-			NewCodeSlow(0, 0, errMsg)
+			_ = NewCodeSlow(0, 0, errMsg)
 		}
 	})
 }
@@ -284,7 +282,6 @@ func BenchmarkNewCode(b *testing.B) {
 
 func BenchmarkCaseMarshal(b *testing.B) {
 	err := NewCode(0, 0, errMsg)
-
 	b.Run("Error", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
@@ -309,30 +306,70 @@ func BenchmarkCaseMarshal(b *testing.B) {
 		}
 		b.StopTimer()
 	})
-}
-
-func equalCaller(expected, actual uintptr) bool {
-	fA, _ := runtime.CallersFrames([]uintptr{actual}).Next()
-	cA := toCaller(fA)
-	fE, _ := runtime.CallersFrames([]uintptr{expected}).Next()
-	cE := toCaller(fE)
-	return cA.String() == cE.String()
-}
-
-func equalStack(t *testing.T, expected, actual []uintptr) bool {
-	_ = t
-	if len(expected) != len(actual) {
-		return false
+	err = &Code{
+		msg:  "msg",
+		code: 1,
+		cache: &callers{
+			stack: []string{
+				"1234567890qwertyuiopasdfghjklzxcvbnm",
+				"1234567890qwertyuiopasdfghjklzxcvbnm",
+				"1234567890qwertyuiopasdfghjklzxcvbnm",
+				"1234567890qwertyuiopasdfghjklzxcvbnm",
+				"1234567890qwertyuiopasdfghjklzxcvbnm",
+				"1234567890qwertyuiopasdfghjklzxcvbnm",
+				"1234567890qwertyuiopasdfghjklzxcvbnm",
+				"1234567890qwertyuiopasdfghjklzxcvbnm",
+				"1234567890qwertyuiopasdfghjklzxcvbnm",
+				"1234567890qwertyuiopasdfghjklzxcvbnm",
+			},
+		},
 	}
-	if !equalCaller(expected[0], actual[0]) {
-		return false
-	}
-	for i := 1; i < len(actual); i++ {
-		if actual[i] != expected[i] {
-			return false
+	b.Run("text", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			buf := &writeBuffer{}
+			f := err.fmt()
+			buf.Grow(f.textSize())
+			f.text(buf)
 		}
-	}
-	return true
+		b.StopTimer()
+	})
+	b.Run("fmt", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			fmt.Sprintf("code:%d, msg:%s, stack:%v", err.code, err.msg, err.cache.stack)
+		}
+		b.StopTimer()
+	})
+	b.Run("+", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		for i := 0; i < b.N; i++ {
+			s := "code:" + strconv.Itoa(err.code) + "msg:" + err.msg + "stack:"
+			for _, str := range err.cache.stack {
+				s += str
+			}
+		}
+		b.StopTimer()
+	})
+	b.Run("bytes.NewBuffer", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+		buf := bytes.NewBuffer(nil)
+		for i := 0; i < b.N; i++ {
+			buf.WriteString("code:")
+			buf.WriteString(strconv.Itoa(err.code))
+			buf.WriteString("msg:")
+			buf.WriteString(err.msg)
+			buf.WriteString("stack:")
+			for _, str := range err.cache.stack {
+				buf.WriteString(str)
+			}
+		}
+		b.StopTimer()
+	})
 }
 
 //
