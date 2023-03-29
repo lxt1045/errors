@@ -35,7 +35,7 @@ var (
 	mRoutineLastDefer = map[int64]struct{}{}
 	lockRoutineDefer  sync.RWMutex
 
-	tryEscapeErr func(error)
+	tryEscapeErr func(error) // { runtime.Goexit() }
 )
 
 type guard struct {

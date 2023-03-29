@@ -57,3 +57,12 @@ func NewLine(format string, ifaces ...interface{}) error {
 		msg: format,
 	}
 }
+
+//go:noinline
+func Line() string {
+	w := &wrapper{
+		pc: GetPC(),
+	}
+	f := w.parse()
+	return f.stack
+}
