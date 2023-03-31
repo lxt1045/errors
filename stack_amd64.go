@@ -31,6 +31,12 @@ import (
 	_ "unsafe" //nolint:bgolint
 )
 
+//go:noinline
+func getPC() [1]uintptr
+
+//go:noinline
+func GetPC() uintptr
+
 func buildStack(s []uintptr) int
 
 func Getg() int64

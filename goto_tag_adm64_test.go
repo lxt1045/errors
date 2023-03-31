@@ -6,6 +6,31 @@ import (
 	"testing"
 )
 
+func TestTagTry0(t *testing.T) {
+	defer func() {
+		fmt.Printf("1 -> ")
+	}()
+
+	tag, err := NewTag() // 当 tag.Try(err) 时，跳转此处并返回 err1
+	fmt.Printf("2 -> ")
+	if err != nil {
+		fmt.Printf("3 -> ")
+		defer func() {
+			_ = 1
+		}()
+		return
+	}
+
+	defer func() {
+		fmt.Printf("4 -> ") // 由于的缺陷：这里 debug 下 defer 不内联，会执行；release 下 defer 内联，不会执行
+	}()
+
+	fmt.Printf("5 -> ")
+	tag.Try(errors.New("err"))
+
+	fmt.Printf("6 -> ")
+	return
+}
 func TestTagTry(t *testing.T) {
 	t.Run("NewLine1", func(t *testing.T) {
 	gototag:

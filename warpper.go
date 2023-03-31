@@ -195,3 +195,9 @@ func (f *fmtWrapper) text(buf *writeBuffer) {
 	buf.WriteString(f.stack)
 	buf.WriteByte(';')
 }
+
+type noCopy struct{}
+
+// Lock is a no-op used by -copylocks checker from `go vet`.
+func (*noCopy) Lock()   {}
+func (*noCopy) Unlock() {}

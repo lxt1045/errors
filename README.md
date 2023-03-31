@@ -7,8 +7,8 @@
 2. [golang文件行号探索](https://juejin.cn/post/7124334239692095501)
 
 此库下有两个功能模块：
-1. errors：初衷是想提升 [pkg/errors](https://github.com/pkg/errors) 的性能，后来发现架构和 [pkg/errors](https://github.com/pkg/errors) 差距太大了，就独立成库了。
-2. errors/logrus：利用了 errors 的高性能获取代码行号的接口，提升 [sirupsen/logrus](https://github.com/sirupsen/logrus) 的性能，目标是提升性能的同时 100% 兼容后者。如有不兼容的地方，欢迎吐槽。
+1. errors：功能和 [pkg/errors](https://github.com/pkg/errors) 类似，性能比后者高一个数量级以上。
+2. errors/logrus：功能和 [sirupsen/logrus](https://github.com/sirupsen/logrus) 一样，目标是 100% 兼容。 利用了 errors 的获取行号的接口，性能比后者高 35% 以上，会持续优化。如有不兼容的地方，欢迎吐槽。
 
 ## 性能测试
 
