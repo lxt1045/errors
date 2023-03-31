@@ -9,7 +9,7 @@ import (
 
 func TestCache(t *testing.T) {
 	t.Run("Cache", func(t *testing.T) {
-		cache := AtomicCache[uintptr, uintptr]{
+		cache := RCUCache[uintptr, uintptr]{
 			New: func(k uintptr) (v uintptr) {
 				return k
 			},
@@ -18,8 +18,8 @@ func TestCache(t *testing.T) {
 		v := cache.Get(100)
 		assert.Equal(t, v, k)
 	})
-	t.Run("AtomicCache", func(t *testing.T) {
-		cache := AtomicCache[uintptr, uintptr]{
+	t.Run("RCUCache", func(t *testing.T) {
+		cache := RCUCache[uintptr, uintptr]{
 			New: func(k uintptr) (v uintptr) {
 				return k
 			},
@@ -36,33 +36,20 @@ go tool pprof ./errors.test cpu.prof
 */
 
 func BenchmarkCache(b *testing.B) {
-	for i := 0; i < 100; i++ {
-		cache := AtomicCache[int, int]{
-			New: func(k int) (v int) {
-				return k
-			},
-		}
-		atomicCache := AtomicCache[int, int]{
+	for i := 0; i < 3; i++ {
+		rcuCache := RCUCache[int, int]{
 			New: func(k int) (v int) {
 				return k
 			},
 		}
 		N := 10240
 		for i := 0; i < N; i++ {
-			cache.Get(i)
-			atomicCache.Get(i)
+			rcuCache.Get(i)
 		}
-		b.Run("cache", func(b *testing.B) {
+		b.Run("RCUCache", func(b *testing.B) {
 			b.ReportAllocs()
 			for i := 0; i < b.N; i++ {
-				cache.Get(i % N)
-			}
-			b.StopTimer()
-		})
-		b.Run("AtomicCache", func(b *testing.B) {
-			b.ReportAllocs()
-			for i := 0; i < b.N; i++ {
-				atomicCache.Get(i % N)
+				rcuCache.Get(i % N)
 			}
 			b.StopTimer()
 		})

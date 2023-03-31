@@ -31,14 +31,14 @@ import (
 	此 Cache和AtomicCache 主要用于只生成一次，永不变更/过期的缓存，二者性能相当
 */
 
-type AtomicCache[K comparable, V any] struct {
+type RCUCache[K comparable, V any] struct {
 	noCopy noCopy //nolint:unused
 
 	cache unsafe.Pointer
 	New   func(K) V
 }
 
-func (c *AtomicCache[K, V]) Get(key K) (v V) {
+func (c *RCUCache[K, V]) Get(key K) (v V) {
 	var ok bool
 	var cache map[K]V
 
@@ -72,7 +72,7 @@ func (c *AtomicCache[K, V]) Get(key K) (v V) {
 	return v
 }
 
-func (c *AtomicCache[K, V]) Set(key K, value V) {
+func (c *RCUCache[K, V]) Set(key K, value V) {
 	var cache map[K]V
 
 	p := atomic.LoadPointer(&c.cache)

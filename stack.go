@@ -20,43 +20,20 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//go:build amd64
-// +build amd64
-
 package errors
 
 import (
-	"fmt"
 	_ "unsafe" //nolint:bgolint
 )
 
-var tryTagErr func(error)
-
-func NewTag() (tag, error) //nolint:bgolint
-
-func tryJump(pc, parent uintptr, err error) uintptr
-
-type tag struct {
-	pc     uintptr
-	parent uintptr
-}
+//go:noinline
+func getPC() [1]uintptr
 
 //go:noinline
-func (t tag) Try(err error) {
-	//还是要加上检查，否则报错信息太难看
-	// 但是检查时只要检查 更上一级的 PC 是否相等即可，不需要复杂的 map 存储了！！！
-	parent := tryJump(t.pc, t.parent, err)
-	if parent != t.parent {
-		cs := toCallers([]uintptr{parent, t.parent, GetPC()})
-		e := fmt.Errorf("tag.Try() should be called in [%s] not in [%s]; file:%s",
-			cs[1].Func, cs[0].Func, cs[2].File)
-		if err != nil {
-			e = fmt.Errorf("%w; %+v", err, e)
-		}
-		if tryTagErr != nil {
-			tryTagErr(e)
-			return
-		}
-		panic(e)
-	}
-}
+func GetPC() uintptr
+
+type noCopy struct{}
+
+// Lock is a no-op used by -copylocks checker from `go vet`.
+func (*noCopy) Lock()   {}
+func (*noCopy) Unlock() {}

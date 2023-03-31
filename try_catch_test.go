@@ -185,14 +185,14 @@ func GetPc1(f func(), t *testing.T) int {
 }
 func BenchmarkPC(b *testing.B) {
 
-	b.Run("GetPc", func(b *testing.B) {
+	b.Run("GetPc:func+RWMutex", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			GetPc(func() {})
 		}
 		b.StopTimer()
 	})
-	b.Run("GetPc0", func(b *testing.B) {
+	b.Run("GetPc0:func+raw map", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			GetPc0(func() {})
@@ -206,16 +206,16 @@ func BenchmarkPC(b *testing.B) {
 		}
 		b.StopTimer()
 	})
-	b.Run("GetPC", func(b *testing.B) {
+	b.Run("GetPC:GetPC+rcu map", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			goid.GetPC()
+			GetPC()
 		}
 		b.StopTimer()
 	})
-	b.Run("FuncForPC", func(b *testing.B) {
+	b.Run("FuncForPC:GetPC+runtime.FuncForPC", func(b *testing.B) {
 		b.ReportAllocs()
-		pc, _ := goid.GetPC(), GetPc(func() {})
+		pc := GetPC()
 		for i := 0; i < b.N; i++ {
 			runtime.FuncForPC(pc).FileLine(pc)
 		}

@@ -36,7 +36,7 @@ const (
 )
 
 var (
-	cacheStack = AtomicCache[[DefaultDepth]uintptr, *callers]{}
+	cacheStack = RCUCache[[DefaultDepth]uintptr, *callers]{}
 
 	pool = sync.Pool{
 		New: func() any { return &[DefaultDepth]uintptr{} },

@@ -31,7 +31,7 @@ import (
 )
 
 //go:noinline
-//Wrap 需要禁止内联，因为内联后，将无法通过 BP 获取正确的PC。
+//Wrap 需要禁止内联,因为内联后,将无法通过 BP 获取正确的PC。
 func Wrap(err error, format string, ifaces ...interface{}) error {
 	if err == nil {
 		return nil
@@ -40,7 +40,7 @@ func Wrap(err error, format string, ifaces ...interface{}) error {
 		format = fmt.Sprintf(format, ifaces...)
 	}
 	return &wrapper{
-		pc:  GetPC(),
+		pc:  getPC(),
 		err: err,
 		msg: format,
 	}
@@ -52,17 +52,8 @@ func NewLine(format string, ifaces ...interface{}) error {
 		format = fmt.Sprintf(format, ifaces...)
 	}
 	return &wrapper{
-		pc:  GetPC(),
+		pc:  getPC(),
 		err: nil,
 		msg: format,
 	}
-}
-
-//go:noinline
-func Line() string {
-	w := &wrapper{
-		pc: GetPC(),
-	}
-	f := w.parse()
-	return f.stack
 }

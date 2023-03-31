@@ -83,7 +83,7 @@ func Try(err *Code) {
 	_, ok := mRoutineLastDefer[gid]
 	lockRoutineDefer.Unlock()
 	if !ok {
-		cs := toCallers([]uintptr{GetPC()[0]})
+		cs := toCallers([]uintptr{GetPC()})
 		e := fmt.Errorf("should call defer Catch(NewGuard(),func()bool before call Try(err)); file:%s",
 			cs[0].File)
 		if err != nil {

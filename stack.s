@@ -20,43 +20,25 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//go:build amd64
-// +build amd64
 
-package errors
+#include "go_asm.h"
+#include "textflag.h"
+#include "funcdata.h"
 
-import (
-	"fmt"
-	_ "unsafe" //nolint:bgolint
-)
 
-var tryTagErr func(error)
+// func getPC() [1]uintptr
+TEXT ·getPC(SB),NOSPLIT,$0-8
+	NO_LOCAL_POINTERS
+	MOVQ	+8(BP), AX		// 上一层调用栈的返回 pc
+	SUBQ	$1, AX
+	MOVQ	AX, ret+0(FP)
+	RET
 
-func NewTag() (tag, error) //nolint:bgolint
 
-func tryJump(pc, parent uintptr, err error) uintptr
-
-type tag struct {
-	pc     uintptr
-	parent uintptr
-}
-
-//go:noinline
-func (t tag) Try(err error) {
-	//还是要加上检查，否则报错信息太难看
-	// 但是检查时只要检查 更上一级的 PC 是否相等即可，不需要复杂的 map 存储了！！！
-	parent := tryJump(t.pc, t.parent, err)
-	if parent != t.parent {
-		cs := toCallers([]uintptr{parent, t.parent, GetPC()})
-		e := fmt.Errorf("tag.Try() should be called in [%s] not in [%s]; file:%s",
-			cs[1].Func, cs[0].Func, cs[2].File)
-		if err != nil {
-			e = fmt.Errorf("%w; %+v", err, e)
-		}
-		if tryTagErr != nil {
-			tryTagErr(e)
-			return
-		}
-		panic(e)
-	}
-}
+// func GetPC() uintptr
+TEXT ·GetPC(SB),NOSPLIT,$0-8
+	NO_LOCAL_POINTERS
+	MOVQ	+8(BP), AX		// 上一层调用栈的返回 pc
+	SUBQ	$1, AX
+	MOVQ	AX, ret+0(FP)
+	RET

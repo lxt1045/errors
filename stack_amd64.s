@@ -28,13 +28,8 @@
 #include "funcdata.h"
 
 
-// func GetPC() uintptr
-TEXT ·GetPC(SB),NOSPLIT,$0-8
-	NO_LOCAL_POINTERS
-	MOVQ	+8(BP), AX		// 上一层调用栈的返回 pc
-	MOVQ	AX, ret+0(FP)
-	RET
-
+GLOBL ·runtime_g_type(SB),NOPTR,$8
+DATA ·runtime_g_type+0(SB)/8,$type·runtime·g(SB) // # 汇编初始化 go 声明的变量
 
 
 // func buildStack(s []uintptr) int

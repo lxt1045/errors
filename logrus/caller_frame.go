@@ -23,40 +23,49 @@
 //go:build amd64
 // +build amd64
 
-package errors
+package logrus
 
 import (
-	"fmt"
+	"runtime"
+	"strconv"
+	"sync/atomic"
+	"unsafe"
 	_ "unsafe" //nolint:bgolint
 )
 
-var tryTagErr func(error)
-
-func NewTag() (tag, error) //nolint:bgolint
-
-func tryJump(pc, parent uintptr, err error) uintptr
-
-type tag struct {
-	pc     uintptr
-	parent uintptr
+type caller struct {
+	Func string
+	File string
 }
 
-//go:noinline
-func (t tag) Try(err error) {
-	//还是要加上检查，否则报错信息太难看
-	// 但是检查时只要检查 更上一级的 PC 是否相等即可，不需要复杂的 map 存储了！！！
-	parent := tryJump(t.pc, t.parent, err)
-	if parent != t.parent {
-		cs := toCallers([]uintptr{parent, t.parent, GetPC()})
-		e := fmt.Errorf("tag.Try() should be called in [%s] not in [%s]; file:%s",
-			cs[1].Func, cs[0].Func, cs[2].File)
-		if err != nil {
-			e = fmt.Errorf("%w; %+v", err, e)
+var mapCaller unsafe.Pointer = func() unsafe.Pointer {
+	m := make(map[uintptr]*caller)
+	return unsafe.Pointer(&m)
+}()
+
+// CallerFrame 使用 Read-copy update(RCU) 缓存提高性能
+func CallerFrame(l uintptr) (cf *caller) {
+	mPCs := *(*map[uintptr]*caller)(atomic.LoadPointer(&mapCaller))
+	cf, ok := mPCs[l]
+	if !ok {
+		c, _ := runtime.CallersFrames([]uintptr{l}).Next()
+		cf = &caller{
+			Func: c.Function,
+			File: c.File + ":" + strconv.Itoa(c.Line),
 		}
-		if tryTagErr != nil {
-			tryTagErr(e)
-			return
+		mPCs2 := make(map[uintptr]*caller, len(mPCs)+10)
+		mPCs2[l] = cf
+		for {
+			p := atomic.LoadPointer(&mapCaller)
+			mPCs = *(*map[uintptr]*caller)(p)
+			for k, v := range mPCs {
+				mPCs2[k] = v
+			}
+			swapped := atomic.CompareAndSwapPointer(&mapCaller, p, unsafe.Pointer(&mPCs2))
+			if swapped {
+				break
+			}
 		}
-		panic(e)
 	}
+	return
 }
