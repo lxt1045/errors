@@ -16,6 +16,20 @@ func TestTagTry0(t *testing.T) {
 		fmt.Printf("3 -> ")
 		return
 		// 空的时候，对比一下生成的代码有什么区别
+		// 参考： https://github.com/golang/proposal/blob/master/design/34481-opencoded-defers.md
+		// 可能原因是：defer 在 loop 中，导致编译器对 defer 内联优化策略的改变！
+		// 逃逸分析失效，被迫当做 defer 逃逸
+		/*
+			src/cmd/compile/internal/walk/stmt.go:116
+			// If n.Esc is not EscNever, then this defer occurs in a loop,
+			// so open-coded defers cannot be used in this function.
+
+			#define FUNCDATA_OpenCodedDeferInfo 4 // info for func with open-coded defers
+
+			参考 runOpenDeferFrame()、addOneOpenDeferFrame() 函数调用 open-coded defers 函数？
+
+			搜索关键词： "open-coded defers"
+		*/
 		for false {
 			defer func() {}()
 		}
