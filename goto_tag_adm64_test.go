@@ -10,15 +10,15 @@ func TestTagTry0(t *testing.T) {
 	defer func() {
 		fmt.Printf("1 -> ")
 	}()
-
 	tag, err := NewTag() // 当 tag.Try(err) 时，跳转此处并返回 err1
 	fmt.Printf("2 -> ")
 	if err != nil {
 		fmt.Printf("3 -> ")
-		defer func() {
-			_ = 1
-		}()
 		return
+		// 空的时候，对比一下生成的代码有什么区别
+		for false {
+			defer func() {}()
+		}
 	}
 
 	defer func() {
