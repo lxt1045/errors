@@ -22,17 +22,8 @@ func TestTagTry(t *testing.T) {
 	fmt.Printf("2 -> ")
 	if err != nil {
 		fmt.Printf("3 -> ")
-		// 参考： https://github.com/golang/proposal/blob/master/design/34481-opencoded-defers.md
-		// defer 在 loop 中，导致编译器对 defer 内联优化策略的改变：不再使用 "open-coded defers" 策略，否则 "4 -> " 将不输出。
-		for false {
-			defer func() {}()
-		}
 		return
 	}
-
-	defer func() {
-		fmt.Printf("4 -> ")
-	}()
 
 	fmt.Printf("5 -> ")
 	tag.Try(errors.New("err"))
@@ -43,7 +34,7 @@ func TestTagTry(t *testing.T) {
 ```
 以上代码将输出：
 ```log
-2 -> 5 -> 2 -> 3 -> 4 -> 1 ->
+2 -> 5 -> 2 -> 3 -> 1 ->
 ```
 当然，如果使用 defer + panic 实现相关功能也可以。
 不过如果忘了 defer recover 有可能会早成程序退出，而且很多公司都禁用这种方式。
