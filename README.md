@@ -10,6 +10,44 @@
 1. errors：功能和 [pkg/errors](https://github.com/pkg/errors) 类似，性能比后者高一个数量级以上。
 2. errors/logrus：功能和 [sirupsen/logrus](https://github.com/sirupsen/logrus) 一样，目标是 100% 兼容。 利用了 errors 获取行号的接口，性能比后者高 35% 以上，会持续优化。如有不兼容的地方，欢迎吐槽。
 
+## Go2 Error Handling
+参考 Go2 的 check与hanle关键字，实现了类是的错误处理逻辑：
+```go
+func TestTagTry(t *testing.T) {
+	defer func() {
+		fmt.Printf("1 -> ")
+	}()
+
+	tag, err := NewTag() // 当 tag.Try(err) 时，跳转此处并返回 err1
+	fmt.Printf("2 -> ")
+	if err != nil {
+		fmt.Printf("3 -> ")
+		// 参考： https://github.com/golang/proposal/blob/master/design/34481-opencoded-defers.md
+		// defer 在 loop 中，导致编译器对 defer 内联优化策略的改变：不再使用 "open-coded defers" 策略，否则 "4 -> " 将不输出。
+		for false {
+			defer func() {}()
+		}
+		return
+	}
+
+	defer func() {
+		fmt.Printf("4 -> ")
+	}()
+
+	fmt.Printf("5 -> ")
+	tag.Try(errors.New("err"))
+
+	fmt.Printf("6 -> ")
+	return
+}
+```
+以上代码将输出：
+```log
+2 -> 5 -> 2 -> 3 -> 4 -> 1 ->
+```
+当然，如果使用 defer + panic 实现相关功能也可以。
+不过如果忘了 defer recover 有可能会早成程序退出，而且很多公司都禁用这种方式。
+
 ## 性能测试
 
 1. errors 和 [pkg/errors](https://github.com/pkg/errors) 比较

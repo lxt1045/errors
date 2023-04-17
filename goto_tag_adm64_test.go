@@ -110,6 +110,46 @@ func TestTagTry(t *testing.T) {
 
 func BenchmarkTag(b *testing.B) {
 	err3 := fmt.Errorf("error 3")
+
+	b.Run("defer&panic", func(b *testing.B) {
+		b.ReportAllocs()
+		var err error
+		_ = err
+		for i := 0; i < b.N; i++ {
+			func() {
+				defer func() {
+					e := recover()
+					if e != nil {
+						err = e.(error)
+						return
+					}
+				}()
+				if err3 != nil {
+					panic(err3)
+				}
+			}()
+		}
+		b.StopTimer()
+	})
+	b.Run("defer&panic-nil", func(b *testing.B) {
+		b.ReportAllocs()
+		var err error
+		_ = err
+		defer func() {
+			e := recover()
+			if e != nil {
+				err = e.(error)
+				return
+			}
+		}()
+		for i := 0; i < b.N; i++ {
+			if false {
+				panic(err3)
+			}
+		}
+		b.StopTimer()
+	})
+
 	b.Run("NewTag&Try", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
@@ -143,6 +183,35 @@ func BenchmarkTag(b *testing.B) {
 			b.Fatal("never goto here")
 		}
 		for i := 0; i < b.N; i++ {
+			tag.Try(nil)
+		}
+		b.StopTimer()
+	})
+
+	b.Run("NewTag&Try-defer", func(b *testing.B) {
+		b.ReportAllocs()
+		defer func() {}()
+		for i := 0; i < b.N; i++ {
+			tag, err1 := NewTag()
+			if err1 != nil {
+				continue
+			}
+			tag.Try(nil)
+		}
+		b.StopTimer()
+	})
+
+	b.Run("NewTag&Try-defer-notinline", func(b *testing.B) {
+		b.ReportAllocs()
+		defer func() {}()
+		for i := 0; i < b.N; i++ {
+			tag, err1 := NewTag()
+			if err1 != nil {
+				for false {
+					defer func() {}()
+				}
+				continue
+			}
 			tag.Try(nil)
 		}
 		b.StopTimer()
