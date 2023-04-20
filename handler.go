@@ -77,14 +77,14 @@ func Catch(g guard, f func(err interface{}) bool) { //nolint:govet
 	panic(e)
 }
 
-func Try(err *Code) {
+func Check(err *Code) {
 	gid := Getg()
 	lockRoutineDefer.Lock()
 	_, ok := mRoutineLastDefer[gid]
 	lockRoutineDefer.Unlock()
 	if !ok {
 		cs := toCallers([]uintptr{GetPC()})
-		e := fmt.Errorf("should call defer Catch(NewGuard(),func()bool before call Try(err)); file:%s",
+		e := fmt.Errorf("should call defer Catch(NewGuard(),func()bool before call Check(err)); file:%s",
 			cs[0].File)
 		if err != nil {
 			e = fmt.Errorf("%w; %+v", err, e)

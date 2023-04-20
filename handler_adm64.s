@@ -28,7 +28,7 @@
 #include "funcdata.h"
 
 
-// func NewTag2() (tag, error)
+// func NewHandler2() (handler, error)
 // func tryJump(pc, parent uintptr, err error) uintptr
 TEXT ·tryJump(SB),NOSPLIT, $0-40
 	NO_LOCAL_POINTERS
@@ -43,9 +43,9 @@ TEXT ·tryJump(SB),NOSPLIT, $0-40
 	RET
 checkerr:
 	CMPQ	err+24(FP), $0 //type eface struct { _type *_type; data  unsafe.Pointer }
-	JHI	gototag
+	JHI	gotohandler
 	RET
-gototag:
+gotohandler:
 	MOVQ	pc+0(FP), CX // retpc -> return addr
 	MOVQ	CX, 8(BP)  //ret addr
 	MOVQ	CX, 16(BP)  //t.pc
@@ -59,8 +59,8 @@ gototag:
 
 
 
-// func NewTag() (tag, error)
-TEXT ·NewTag(SB),NOSPLIT,$32-24
+// func NewHandler() (handler, error)
+TEXT ·NewHandler(SB),NOSPLIT,$32-24
 	NO_LOCAL_POINTERS
 	MOVQ	$0, ret+0(FP)  // 返回值清零
 	MOVQ	$0, ret+8(FP)

@@ -30,31 +30,31 @@ import (
 	_ "unsafe" //nolint:bgolint
 )
 
-var tryTagErr func(error)
+var tryHandlerErr func(error)
 
-func NewTag() (tag, error) //nolint:bgolint
+func NewHandler() (handler, error) //nolint:bgolint
 
 func tryJump(pc, parent uintptr, err error) uintptr
 
-type tag struct {
+type handler struct {
 	pc     uintptr
 	parent uintptr
 }
 
 //go:noinline
-func (t tag) Try(err error) {
+func (t handler) Check(err error) {
 	//还是要加上检查，否则报错信息太难看
 	// 但是检查时只要检查 更上一级的 PC 是否相等即可，不需要复杂的 map 存储了！！！
 	parent := tryJump(t.pc, t.parent, err)
 	if parent != t.parent {
 		cs := toCallers([]uintptr{parent, t.parent, GetPC()})
-		e := fmt.Errorf("tag.Try() should be called in [%s] not in [%s]; file:%s",
+		e := fmt.Errorf("handler.Check() should be called in [%s] not in [%s]; file:%s",
 			cs[1].Func, cs[0].Func, cs[2].File)
 		if err != nil {
 			e = fmt.Errorf("%w; %+v", err, e)
 		}
-		if tryTagErr != nil {
-			tryTagErr(e)
+		if tryHandlerErr != nil {
+			tryHandlerErr(e)
 			return
 		}
 		panic(e)

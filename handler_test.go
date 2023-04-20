@@ -23,13 +23,13 @@ func Test_OKx0(t *testing.T) {
 	}()
 
 	err := NewCode(0, 0, "test")
-	Try(err)
+	Check(err)
 }
 func Test_OKx2(t *testing.T) {
 	t.Run("panic", func(t *testing.T) {
 		assert.Panics(t, func() {
 			err := NewCode(0, 0, "test")
-			Try(err)
+			Check(err)
 		})
 	})
 	t.Run("panic", func(t *testing.T) {
@@ -42,7 +42,7 @@ func Test_OKx2(t *testing.T) {
 		}()
 
 		err := NewCode(0, 0, "test")
-		Try(err)
+		Check(err)
 	})
 	t.Run("panic", func(t *testing.T) {
 		defer Catch(NewGuard(), func(interface{}) bool {
@@ -57,17 +57,17 @@ func Test_OKx2(t *testing.T) {
 		}()
 
 		err := NewCode(0, 0, "test")
-		Try(err)
+		Check(err)
 	})
 }
 
 /*
-go test -benchmem -run=^$ -bench "^(BenchmarkTryx)$" github.com/lxt1045/errors -count=1 -v -cpuprofile cpu.prof -c
+go test -benchmem -run=^$ -bench "^(BenchmarkCheckx)$" github.com/lxt1045/errors -count=1 -v -cpuprofile cpu.prof -c
 go tool pprof ./errors.test cpu.prof
-go test -benchmem -run=^$ -bench "^(BenchmarkTryx)$" github.com/lxt1045/errors -test.memprofilerate=1 -count=1 -v -memprofile mem.prof -c
+go test -benchmem -run=^$ -bench "^(BenchmarkCheckx)$" github.com/lxt1045/errors -test.memprofilerate=1 -count=1 -v -memprofile mem.prof -c
 go tool pprof ./errors.test mem.prof
 */
-func BenchmarkTryx(b *testing.B) {
+func BenchmarkCheckx(b *testing.B) {
 	errCodeNotNil := NewCode(0, errCode, errMsg)
 	type run struct {
 		funcName string       //函数名字
@@ -81,20 +81,20 @@ func BenchmarkTryx(b *testing.B) {
 			goid.Get()
 			return
 		}},
-		{"Try(nil)", func() (err error) {
+		{"Check(nil)", func() (err error) {
 			defer Catch(NewGuard(), func(e interface{}) (ok bool) {
 				err, ok = e.(*Code)
 				return true
 			})
-			Try(nil)
+			Check(nil)
 			return
 		}},
-		{"Try(errCodeNotNil)", func() (err error) {
+		{"Check(errCodeNotNil)", func() (err error) {
 			defer Catch(NewGuard(), func(e interface{}) (ok bool) {
 				err, ok = e.(*Code)
 				return true
 			})
-			Try(errCodeNotNil)
+			Check(errCodeNotNil)
 			return
 		}},
 	}

@@ -6,11 +6,11 @@ import (
 	"testing"
 )
 
-func TestTagTry0(t *testing.T) {
+func TestHandlerCheck0(t *testing.T) {
 	defer func() {
 		fmt.Printf("1 -> ")
 	}()
-	tag, err := NewTag() // 当 tag.Try(err) 时，跳转此处并返回 err1
+	handler, err := NewHandler() // 当 handler.Check(err) 时，跳转此处并返回 err1
 	fmt.Printf("2 -> ")
 	if err != nil {
 		fmt.Printf("3 -> ")
@@ -40,18 +40,18 @@ func TestTagTry0(t *testing.T) {
 	}()
 
 	fmt.Printf("5 -> ")
-	tag.Try(errors.New("err"))
+	handler.Check(errors.New("err"))
 
 	fmt.Printf("6 -> ")
 	return
 }
-func TestTagTry(t *testing.T) {
+func TestHandlerCheck(t *testing.T) {
 	t.Run("NewLine1", func(t *testing.T) {
-	gototag:
+	gotohandler:
 		defer func() {
 			fmt.Printf("2")
 		}()
-		tag, err1 := NewTag() // 当 tag.Try(err) 时，跳转此处并返回 err1
+		handler, err1 := NewHandler() // 当 handler.Check(err) 时，跳转此处并返回 err1
 		if err1 != nil {
 			return
 		}
@@ -59,10 +59,10 @@ func TestTagTry(t *testing.T) {
 			fmt.Printf("1")
 		}()
 		err := errors.New("err")
-		tag.Try(err)
+		handler.Check(err)
 
 		return
-		goto gototag
+		goto gotohandler
 	})
 	return
 	t.Run("NewLine", func(t *testing.T) {
@@ -75,13 +75,13 @@ func TestTagTry(t *testing.T) {
 					t.Log("inner defer")
 				}()
 				t.Log("1")
-				// fJump, err1 := NewTag()
-				tag, err1 := NewTag()
+				// fJump, err1 := NewHandler()
+				handler, err1 := NewHandler()
 				if err1 != nil {
 					t.Log("3")
 					err = err1
-					t.Log("Tag() get error:", err1)
-					// tag.Try(err3)
+					t.Log("Handler() get error:", err1)
+					// handler.Check(err3)
 					return
 				}
 				defer func() {
@@ -89,17 +89,17 @@ func TestTagTry(t *testing.T) {
 				}()
 				t.Log("2")
 				err3 := fmt.Errorf("error 3")
-				// GotoTag(err3)
-				// TryJump(err3)
+				// GotoHandler(err3)
+				// CheckJump(err3)
 				// fJump(err3)
-				tag.Try(nil)
+				handler.Check(nil)
 				_ = func() {
-					tryTagErr = func(err error) {
+					tryHandlerErr = func(err error) {
 						t.Fatal(err)
 					}
-					tag.Try(err3)
+					handler.Check(err3)
 				}
-				tag.Try(err3)
+				handler.Check(err3)
 				t.Log("4")
 				return
 			}()
@@ -108,7 +108,7 @@ func TestTagTry(t *testing.T) {
 	})
 }
 
-func BenchmarkTag(b *testing.B) {
+func BenchmarkHandler(b *testing.B) {
 	err3 := fmt.Errorf("error 3")
 
 	b.Run("defer&panic", func(b *testing.B) {
@@ -150,31 +150,31 @@ func BenchmarkTag(b *testing.B) {
 		b.StopTimer()
 	})
 
-	b.Run("NewTag&Try", func(b *testing.B) {
+	b.Run("NewHandler&Check", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			tag, err1 := NewTag()
+			handler, err1 := NewHandler()
 			if err1 != nil {
 				continue
 			}
-			tag.Try(err3)
+			handler.Check(err3)
 		}
 		b.StopTimer()
 	})
-	b.Run("NewTag&Try(nil)", func(b *testing.B) {
+	b.Run("NewHandler&Check(nil)", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
-			tag, err1 := NewTag()
+			handler, err1 := NewHandler()
 			if err1 != nil {
 				continue
 			}
-			tag.Try(nil)
+			handler.Check(nil)
 		}
 		b.StopTimer()
 	})
-	b.Run("Try(nil)", func(b *testing.B) {
+	b.Run("Check(nil)", func(b *testing.B) {
 		b.ReportAllocs()
-		tag, err1 := NewTag()
+		handler, err1 := NewHandler()
 		count := 0
 		if err1 != nil {
 			b.Fatal("never goto here")
@@ -183,36 +183,36 @@ func BenchmarkTag(b *testing.B) {
 			b.Fatal("never goto here")
 		}
 		for i := 0; i < b.N; i++ {
-			tag.Try(nil)
+			handler.Check(nil)
 		}
 		b.StopTimer()
 	})
 
-	b.Run("NewTag&Try-defer", func(b *testing.B) {
+	b.Run("NewHandler&Check-defer", func(b *testing.B) {
 		b.ReportAllocs()
 		defer func() {}()
 		for i := 0; i < b.N; i++ {
-			tag, err1 := NewTag()
+			handler, err1 := NewHandler()
 			if err1 != nil {
 				continue
 			}
-			tag.Try(nil)
+			handler.Check(nil)
 		}
 		b.StopTimer()
 	})
 
-	b.Run("NewTag&Try-defer-notinline", func(b *testing.B) {
+	b.Run("NewHandler&Check-defer-notinline", func(b *testing.B) {
 		b.ReportAllocs()
 		defer func() {}()
 		for i := 0; i < b.N; i++ {
-			tag, err1 := NewTag()
+			handler, err1 := NewHandler()
 			if err1 != nil {
 				for false {
 					defer func() {}()
 				}
 				continue
 			}
-			tag.Try(nil)
+			handler.Check(nil)
 		}
 		b.StopTimer()
 	})

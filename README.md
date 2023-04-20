@@ -10,15 +10,15 @@
 1. errors：功能和 [pkg/errors](https://github.com/pkg/errors) 类似，性能比后者高一个数量级以上。
 2. errors/logrus：功能和 [sirupsen/logrus](https://github.com/sirupsen/logrus) 一样，目标是 100% 兼容。 利用了 errors 获取行号的接口，性能比后者高 35% 以上，会持续优化。如有不兼容的地方，欢迎吐槽。
 
-## Go2 Error Handling
+## 模拟 Go2 错误处理方式
 参考 Go2 的 check与hanle关键字，实现了类是的错误处理逻辑：
 ```go
-func TestTagTry(t *testing.T) {
+func TestHandlerCheck(t *testing.T) {
 	defer func() {
 		fmt.Printf("1 -> ")
 	}()
 
-	tag, err := NewTag() // 当 tag.Try(err) 时，跳转此处并返回 err1
+	handler, err := NewHandler() // 当 tag.Try(err) 时，跳转此处并返回 err1
 	fmt.Printf("2 -> ")
 	if err != nil {
 		fmt.Printf("3 -> ")
@@ -26,7 +26,7 @@ func TestTagTry(t *testing.T) {
 	}
 
 	fmt.Printf("5 -> ")
-	tag.Try(errors.New("err"))
+	handler.Check(errors.New("err"))
 
 	fmt.Printf("6 -> ")
 	return
@@ -208,3 +208,7 @@ BenchmarkLog/logrus+lxt_caller-12  422571    2413 ns/op    1354 B/op    25 alloc
 
 ## 设计思路
 
+
+
+# 交流学习
+![扫码加微信好友](https://github.com/lxt1045/wechatbot/blob/main/resource/Wechat-lxt.png "微信")
