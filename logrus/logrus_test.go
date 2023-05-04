@@ -85,6 +85,14 @@ func TestLog(t *testing.T) {
 	})
 }
 
+/*
+BenchmarkLog/logrus+caller
+BenchmarkLog/logrus+caller-12         	  201052	      5213 ns/op	    2172 B/op	      36 allocs/op
+BenchmarkLog/logrus+lxt_caller
+BenchmarkLog/logrus+lxt_caller-12     	  316198	      3901 ns/op	    2317 B/op	      35 allocs/op
+BenchmarkLog/logrus
+BenchmarkLog/logrus-12                	  495543	      2562 ns/op	    1354 B/op	      25 allocs/op
+*/
 func BenchmarkLog(b *testing.B) {
 	bs := make([]byte, 1<<20)
 	w := bytes.NewBuffer(bs)
@@ -109,7 +117,7 @@ func BenchmarkLog(b *testing.B) {
 		}
 	})
 
-	b.Run("logrus", func(b *testing.B) {
+	b.Run("logrus+lxt caller", func(b *testing.B) {
 		logrus.SetReportCaller(false)
 		for i := 0; i < b.N; i++ {
 			WithContext(ctx).Info("info msg")
@@ -119,7 +127,7 @@ func BenchmarkLog(b *testing.B) {
 		}
 	})
 
-	b.Run("logrus+lxt caller", func(b *testing.B) {
+	b.Run("logrus", func(b *testing.B) {
 		logrus.SetReportCaller(false)
 		for i := 0; i < b.N; i++ {
 			logrus.WithContext(ctx).Info("info msg")
