@@ -8,7 +8,7 @@
 
 此库下有两个功能模块：
 1. errors：功能和 [pkg/errors](https://github.com/pkg/errors) 类似，性能比后者高一个数量级以上。
-2. errors/logrus：功能和 [sirupsen/logrus](https://github.com/sirupsen/logrus) 一样，目标是 100% 兼容。 利用了 errors 获取行号的接口，性能比后者高 35% 以上，会持续优化。如有不兼容的地方，欢迎吐槽。
+2. errors/logrus 和 errors/zap：分别包装了 [sirupsen/logrus](https://github.com/sirupsen/logrus) 和 [go.uber.org/zap](https://github.com/uber-go/zap) ，目标是 100% 兼容后者。 利用了 errors 获取行号的接口，能减少 1300ns ~ 2500ns 的时间损耗，会持续优化。如有不兼容的地方，欢迎吐槽。
 
 ## 模拟 Go2 错误处理方式
 参考 Go2 的 check与hanle关键字，实现了类是的错误处理逻辑：
