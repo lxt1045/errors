@@ -47,6 +47,7 @@ func (log *Logger) getZapCore() zapcore.Core {
 }
 
 func New(core zapcore.Core, options ...zap.Option) *Logger {
+	// options = append(options, zap.WithCaller(false))
 	logger := zap.New(core, options...)
 	return toLogger(logger)
 }

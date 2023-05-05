@@ -24,10 +24,9 @@ func TestLog(t *testing.T) {
 			zapcore.InfoLevel,
 		)
 		logger := zap.New(core, zap.WithCaller(true))
-		logger.Info("failed to fetch URL",
-			zap.String("url", `http://foo.com`),
-			zap.Int("attempt", 3),
-			zap.Duration("backoff", time.Second),
+		logger.Info("some log messages",
+			zap.String("string", `some string format log information`),
+			zap.Int("int", 3),
 		)
 	})
 
@@ -41,10 +40,9 @@ func TestLog(t *testing.T) {
 			zapcore.InfoLevel,
 		)
 		logger := New(core, zap.WithCaller(false))
-		logger.Info("failed to fetch URL",
-			zap.String("url", `http://foo.com`),
-			zap.Int("attempt", 3),
-			zap.Duration("backoff", time.Second),
+		logger.Info("some log messages",
+			zap.String("string", `some string format log information`),
+			zap.Int("int", 3),
 		)
 	})
 
@@ -59,10 +57,9 @@ func TestLog(t *testing.T) {
 		)
 		logger := zap.New(core, zap.WithCaller(false))
 		sugar := logger.Sugar()
-		sugar.Info("failed to fetch URL",
-			"url", `http://foo.com`,
-			"attempt", 3,
-			"backoff", time.Second,
+		sugar.Info("some log messages",
+			"string", `some string format log information`,
+			"int", 3,
 		)
 	})
 
@@ -77,18 +74,14 @@ func TestLog(t *testing.T) {
 		)
 		logger := New(core, zap.WithCaller(false))
 		sugar := logger.Sugar()
-		sugar.Info("failed to fetch URL",
-			"url", `http://foo.com`,
-			"attempt", 3,
+		sugar.Info("some log messages",
+			"string", `some string format log information`,
+			"int", 3,
 			"backoff", time.Second,
 		)
 	})
 }
 
-/*
-
-
- */
 func BenchmarkLog(b *testing.B) {
 	b.Run("logrus", func(b *testing.B) {
 		b.StopTimer()
@@ -99,10 +92,9 @@ func BenchmarkLog(b *testing.B) {
 		b.StartTimer()
 		for i := 0; i < b.N; i++ {
 			logger.WithFields(logrus.Fields{
-				"url":     "http://foo.com",
-				"attempt": 3,
-				"backoff": time.Second,
-			}).Info("failed to fetch URL")
+				"string": "some string format log information",
+				"int":    3,
+			}).Info("some log messages")
 		}
 	})
 	b.Run("logrus+caller", func(b *testing.B) {
@@ -114,10 +106,9 @@ func BenchmarkLog(b *testing.B) {
 		b.StartTimer()
 		for i := 0; i < b.N; i++ {
 			logger.WithFields(logrus.Fields{
-				"url":     "http://foo.com",
-				"attempt": 3,
-				"backoff": time.Second,
-			}).Info("failed to fetch URL")
+				"string": "some string format log information",
+				"int":    3,
+			}).Info("some log messages")
 		}
 	})
 	b.Run("logrus+lxt caller", func(b *testing.B) {
@@ -130,10 +121,9 @@ func BenchmarkLog(b *testing.B) {
 		b.StartTimer()
 		for i := 0; i < b.N; i++ {
 			logger.WithFields(lxtlog.Fields{
-				"url":     "http://foo.com",
-				"attempt": 3,
-				"backoff": time.Second,
-			}).Info("failed to fetch URL")
+				"string": "some string format log information",
+				"int":    3,
+			}).Info("some log messages")
 		}
 	})
 
@@ -150,10 +140,9 @@ func BenchmarkLog(b *testing.B) {
 		logger := zap.New(core)
 		b.StartTimer()
 		for i := 0; i < b.N; i++ {
-			logger.Info("failed to fetch URL",
-				zap.String("url", `http://foo.com`),
-				zap.Int("attempt", 3),
-				zap.Duration("backoff", time.Second),
+			logger.Info("some log messages",
+				zap.String("string", `some string format log information`),
+				zap.Int("int", 3),
 			)
 		}
 	})
@@ -170,10 +159,9 @@ func BenchmarkLog(b *testing.B) {
 		logger := zap.New(core, zap.WithCaller(true))
 		b.StartTimer()
 		for i := 0; i < b.N; i++ {
-			logger.Info("failed to fetch URL",
-				zap.String("url", `http://foo.com`),
-				zap.Int("attempt", 3),
-				zap.Duration("backoff", time.Second),
+			logger.Info("some log messages",
+				zap.String("string", `some string format log information`),
+				zap.Int("int", 3),
 			)
 		}
 	})
@@ -190,10 +178,9 @@ func BenchmarkLog(b *testing.B) {
 		logger := New(core, zap.WithCaller(false))
 		b.StartTimer()
 		for i := 0; i < b.N; i++ {
-			logger.Info("failed to fetch URL",
-				zap.String("url", `http://foo.com`),
-				zap.Int("attempt", 3),
-				zap.Duration("backoff", time.Second),
+			logger.Info("some log messages",
+				zap.String("string", `some string format log information`),
+				zap.Int("int", 3),
 			)
 		}
 	})
@@ -212,9 +199,9 @@ func BenchmarkLog(b *testing.B) {
 		sugar := logger.Sugar()
 		b.StartTimer()
 		for i := 0; i < b.N; i++ {
-			sugar.Info("failed to fetch URL",
-				"url", `http://foo.com`,
-				"attempt", 3,
+			sugar.Info("some log messages",
+				"string", `some string format log information`,
+				"int", 3,
 				"backoff", time.Second,
 			)
 		}
@@ -233,9 +220,9 @@ func BenchmarkLog(b *testing.B) {
 		sugar := logger.Sugar()
 		b.StartTimer()
 		for i := 0; i < b.N; i++ {
-			sugar.Info("failed to fetch URL",
-				"url", `http://foo.com`,
-				"attempt", 3,
+			sugar.Info("some log messages",
+				"string", `some string format log information`,
+				"int", 3,
 				"backoff", time.Second,
 			)
 		}
@@ -255,9 +242,9 @@ func BenchmarkLog(b *testing.B) {
 		sugar := logger.Sugar()
 		b.StartTimer()
 		for i := 0; i < b.N; i++ {
-			sugar.Info("failed to fetch URL",
-				"url", `http://foo.com`,
-				"attempt", 3,
+			sugar.Info("some log messages",
+				"string", `some string format log information`,
+				"int", 3,
 				"backoff", time.Second,
 			)
 		}
@@ -272,4 +259,28 @@ func BenchmarkLog(b *testing.B) {
 			io.Discard.Write([]byte(zap.String("caller", c.File).String))
 		}
 	})
+}
+
+/*
+go test -benchmem -run=^$ -bench ^BenchmarkZapCaller$ github.com/lxt1045/errors/zap -count=1 -v -cpuprofile cpu.prof -c
+go tool pprof ./json.test cpu.prof
+*/
+func BenchmarkZapCaller(b *testing.B) {
+	b.StopTimer()
+	b.ReportAllocs()
+	cfg := zap.NewProductionConfig()
+	core := zapcore.NewCore(
+		// zapcore.NewJSONEncoder(cfg.EncoderConfig),
+		zapcore.NewConsoleEncoder(cfg.EncoderConfig),
+		zapcore.AddSync(io.Discard),
+		zapcore.InfoLevel,
+	)
+	logger := zap.New(core, zap.WithCaller(true))
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		logger.Info("some log messages",
+			zap.String("string", `some string format log information`),
+			zap.Int("int", 3),
+		)
+	}
 }

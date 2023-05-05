@@ -3,6 +3,7 @@ package logrus
 import (
 	"bytes"
 	"context"
+	"io"
 	"runtime"
 	"strconv"
 	"testing"
@@ -136,4 +137,23 @@ func BenchmarkLog(b *testing.B) {
 			}
 		}
 	})
+}
+
+/*
+go test -benchmem -run=^$ -bench ^BenchmarkLogrusCaller$ github.com/lxt1045/errors/logrus -count=1 -v -cpuprofile cpu.prof -c
+go tool pprof ./json.test cpu.prof
+*/
+func BenchmarkLogrusCaller(b *testing.B) {
+	b.StopTimer()
+	b.ReportAllocs()
+	logger := logrus.New()
+	logger.SetOutput(io.Discard)
+	logger.SetReportCaller(true)
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		logger.WithFields(logrus.Fields{
+			"string": "some string format log information",
+			"int":    3,
+		}).Info("some log messages")
+	}
 }

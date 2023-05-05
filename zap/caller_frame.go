@@ -26,8 +26,10 @@
 package zap
 
 import (
+	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"unsafe"
 	_ "unsafe" //nolint:bgolint
@@ -49,9 +51,17 @@ func CallerFrame(l uintptr) (cf *caller) {
 	cf, ok := mPCs[l]
 	if !ok {
 		c, _ := runtime.CallersFrames([]uintptr{l}).Next()
+		file := c.File
+		iSeparator := strings.LastIndexByte(file, filepath.Separator)
+		if iSeparator > 0 {
+			iSeparator = strings.LastIndexByte(file[:iSeparator], filepath.Separator)
+			if iSeparator > 0 {
+				file = file[iSeparator+1:]
+			}
+		}
 		cf = &caller{
 			Func: c.Function,
-			File: c.File + ":" + strconv.Itoa(c.Line),
+			File: file + ":" + strconv.Itoa(c.Line),
 		}
 		mPCs2 := make(map[uintptr]*caller, len(mPCs)+10)
 		mPCs2[l] = cf

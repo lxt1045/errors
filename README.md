@@ -39,7 +39,7 @@ func TestHandlerCheck(t *testing.T) {
 当然，如果使用 defer + panic 实现相关功能也可以。
 不过如果忘了 defer recover 有可能会早成程序退出，而且很多公司都禁用这种方式。
 
-## 性能测试
+## 性能基准测试
 
 1. errors 和 [pkg/errors](https://github.com/pkg/errors) 比较
 
@@ -144,66 +144,215 @@ BenchmarkNewAndFormatting/pkg.text.%v-10-12    95394    11317 ns/op  4315 B/op  
 ```
 
 
-2. errors/logrus 和 [sirupsen/logrus](https://github.com/sirupsen/logrus)
+2. errors/logrus 和 errors/zap 性能提升
 
-由结果可知，性能提升了 35% 以上。
+errors/logrus 和 errors/zap 分别替换了 [sirupsen/logrus](https://github.com/sirupsen/logrus) 和 [go.uber.org/zap](https://github.com/uber-go/zap) 的代码行号获取逻辑。
 
-[BenchmarkLog](https://github.com/lxt1045/errors/blob/main/logrus/sample_test.go#L96)
+由结果可知，能减少 1300ns ~ 2500ns 的损耗，而且是兼容性升级，非常值得尝试。
+
+[BenchmarkLog](https://github.com/lxt1045/errors/blob/main/zap/zap_test.go#L85)
 ```go
-
 func BenchmarkLog(b *testing.B) {
-    bs := make([]byte, 1<<20)
-    w := bytes.NewBuffer(bs)
-    logrus.SetReportCaller(true)
-    logrus.SetOutput(w)
-    // logrus.SetLevel(logrus.DebugLevel)
-    logrus.SetFormatter(&logrus.JSONFormatter{})
-    // h := &Hook{AppName: "awesome-web"}
-    // logrus.AddHook(h)
-    logrus.Info("info msg")
-    // b.Log(w.String())
+	b.Run("logrus", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		logger := logrus.New()
+		logger.SetOutput(io.Discard)
+		// logrus.SetReportCaller(true)
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			logger.WithFields(logrus.Fields{
+				"string": "some string format log information",
+				"int":    3,
+			}).Info("some log messages")
+		}
+	})
+	b.Run("logrus+caller", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		logger := logrus.New()
+		logger.SetOutput(io.Discard)
+		logger.SetReportCaller(true)
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			logger.WithFields(logrus.Fields{
+				"string": "some string format log information",
+				"int":    3,
+			}).Info("some log messages")
+		}
+	})
+	b.Run("logrus+lxt caller", func(b *testing.B) {
+		// logrus.SetReportCaller(false)
+		b.StopTimer()
+		b.ReportAllocs()
+		logger := lxtlog.New()
+		logger.SetOutput(io.Discard)
+		// logrus.SetReportCaller(true)
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			logger.WithFields(lxtlog.Fields{
+				"string": "some string format log information",
+				"int":    3,
+			}).Info("some log messages")
+		}
+	})
 
-    ctx := context.TODO()
+	b.Run("zap", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		cfg := zap.NewProductionConfig()
+		core := zapcore.NewCore(
+			// zapcore.NewJSONEncoder(cfg.EncoderConfig),
+			zapcore.NewConsoleEncoder(cfg.EncoderConfig),
+			zapcore.AddSync(io.Discard),
+			zapcore.InfoLevel,
+		)
+		logger := zap.New(core)
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			logger.Info("some log messages",
+				zap.String("string", `some string format log information`),
+				zap.Int("int", 3),
+			)
+		}
+	})
+	b.Run("zap+caller", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		cfg := zap.NewProductionConfig()
+		core := zapcore.NewCore(
+			// zapcore.NewJSONEncoder(cfg.EncoderConfig),
+			zapcore.NewConsoleEncoder(cfg.EncoderConfig),
+			zapcore.AddSync(io.Discard),
+			zapcore.InfoLevel,
+		)
+		logger := zap.New(core, zap.WithCaller(true))
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			logger.Info("some log messages",
+				zap.String("string", `some string format log information`),
+				zap.Int("int", 3),
+			)
+		}
+	})
+	b.Run("zap+lxt caller", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		cfg := zap.NewProductionConfig()
+		core := zapcore.NewCore(
+			// zapcore.NewJSONEncoder(cfg.EncoderConfig),
+			zapcore.NewConsoleEncoder(cfg.EncoderConfig),
+			zapcore.AddSync(io.Discard),
+			zapcore.InfoLevel,
+		)
+		logger := New(core, zap.WithCaller(false))
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			logger.Info("some log messages",
+				zap.String("string", `some string format log information`),
+				zap.Int("int", 3),
+			)
+		}
+	})
 
-    b.Run("logrus+caller", func(b *testing.B) {
-        logrus.SetReportCaller(true)
-        for i := 0; i < b.N; i++ {
-            logrus.WithContext(ctx).Info("info msg")
-            if w.Len() > len(bs)-64 {
-                w.Reset()
-            }
-        }
-    })
+	b.Run("zap-sugar", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		cfg := zap.NewProductionConfig()
+		core := zapcore.NewCore(
+			// zapcore.NewJSONEncoder(cfg.EncoderConfig),
+			zapcore.NewConsoleEncoder(cfg.EncoderConfig),
+			zapcore.AddSync(io.Discard),
+			zapcore.InfoLevel,
+		)
+		logger := zap.New(core)
+		sugar := logger.Sugar()
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			sugar.Info("some log messages",
+				"string", `some string format log information`,
+				"int", 3,
+				"backoff", time.Second,
+			)
+		}
+	})
+	b.Run("zap-sugar+caller", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		cfg := zap.NewProductionConfig()
+		core := zapcore.NewCore(
+			// zapcore.NewJSONEncoder(cfg.EncoderConfig),
+			zapcore.NewConsoleEncoder(cfg.EncoderConfig),
+			zapcore.AddSync(io.Discard),
+			zapcore.InfoLevel,
+		)
+		logger := zap.New(core, zap.WithCaller(true))
+		sugar := logger.Sugar()
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			sugar.Info("some log messages",
+				"string", `some string format log information`,
+				"int", 3,
+				"backoff", time.Second,
+			)
+		}
+	})
 
-    b.Run("logrus", func(b *testing.B) {
-        logrus.SetReportCaller(false)
-        for i := 0; i < b.N; i++ {
-            WithContext(ctx).Info("info msg")
-            if w.Len() > len(bs)-64 {
-                w.Reset()
-            }
-        }
-    })
+	b.Run("zap-sugar+lxt caller", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		cfg := zap.NewProductionConfig()
+		core := zapcore.NewCore(
+			// zapcore.NewJSONEncoder(cfg.EncoderConfig),
+			zapcore.NewConsoleEncoder(cfg.EncoderConfig),
+			zapcore.AddSync(io.Discard),
+			zapcore.InfoLevel,
+		)
+		logger := New(core, zap.WithCaller(false))
+		sugar := logger.Sugar()
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			sugar.Info("some log messages",
+				"string", `some string format log information`,
+				"int", 3,
+				"backoff", time.Second,
+			)
+		}
+	})
 
-    b.Run("logrus+lxt caller", func(b *testing.B) {
-        logrus.SetReportCaller(false)
-        for i := 0; i < b.N; i++ {
-            logrus.WithContext(ctx).Info("info msg")
-            if w.Len() > len(bs)-64 {
-                w.Reset()
-            }
-        }
-    })
+	b.Run("lxt caller", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			c := CallerFrame(errors.GetPC())
+			io.Discard.Write([]byte(zap.String("caller", c.File).String))
+		}
+	})
 }
 ```
 测试结果如下：
 ```sh
-BenchmarkLog/logrus+caller
-BenchmarkLog/logrus+caller-12      169206    6166 ns/op    2172 B/op    36 allocs/op
 BenchmarkLog/logrus
-BenchmarkLog/logrus-12             265323    3942 ns/op    2317 B/op    35 allocs/op
+BenchmarkLog/logrus-12         	  382123	      3144 ns/op	    1361 B/op	      23 allocs/op
+BenchmarkLog/logrus+caller
+BenchmarkLog/logrus+caller-12  	  173437	      6745 ns/op	    2355 B/op	      34 allocs/op
 BenchmarkLog/logrus+lxt_caller
-BenchmarkLog/logrus+lxt_caller-12  422571    2413 ns/op    1354 B/op    25 allocs/op
+BenchmarkLog/logrus+lxt_caller-12         	  239078	      4836 ns/op	    2082 B/op	      31 allocs/op
+BenchmarkLog/zap
+BenchmarkLog/zap-12                       	 1457443	       812.7 ns/op	     152 B/op	       3 allocs/op
+BenchmarkLog/zap+caller
+BenchmarkLog/zap+caller-12                	  461288	      2391 ns/op	     401 B/op	       6 allocs/op
+BenchmarkLog/zap+lxt_caller
+BenchmarkLog/zap+lxt_caller-12            	 1000000	      1053 ns/op	     409 B/op	       4 allocs/op
+BenchmarkLog/zap-sugar
+BenchmarkLog/zap-sugar-12                 	 1411080	       848.2 ns/op	     112 B/op	       4 allocs/op
+BenchmarkLog/zap-sugar+caller
+BenchmarkLog/zap-sugar+caller-12          	  388030	      3542 ns/op	     361 B/op	       7 allocs/op
+BenchmarkLog/zap-sugar+lxt_caller
+BenchmarkLog/zap-sugar+lxt_caller-12      	 1171387	      1015 ns/op	     176 B/op	       5 allocs/op
+BenchmarkLog/lxt_caller
+BenchmarkLog/lxt_caller-12                	35303271	        32.32 ns/op	      24 B/op	       1 allocs/op
 ```
 
 ## 设计思路
