@@ -25,6 +25,8 @@ package errors
 import (
 	"fmt"
 	"sync"
+
+	"github.com/petermattis/goid"
 )
 
 func init() {
@@ -43,6 +45,8 @@ type guard struct {
 	own bool
 	noCopy
 }
+
+var Getg = goid.Get
 
 //go:noinline
 func NewGuard() guard { //nolint:bgolint

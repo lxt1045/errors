@@ -26,8 +26,6 @@
 package errors
 
 import (
-	"reflect"
-	"unsafe"
 	_ "unsafe" //nolint:bgolint
 )
 
@@ -38,31 +36,3 @@ func getPC() [1]uintptr
 func GetPC() uintptr
 
 func buildStack(s []uintptr) int
-
-func Getg() int64
-
-func getgi() interface{}
-
-var gGoidOffset uintptr = func() uintptr { //nolint
-	g := getgi()
-	if f, ok := reflect.TypeOf(g).FieldByName("goid"); ok {
-		return f.Offset
-	}
-	panic("can not find g.goid field")
-}()
-
-// runtime_g_type 变量由汇编初始化值
-var runtime_g_type uint64
-
-var gGoidOffset2 uintptr = func() uintptr { //nolint
-	var iface interface{}
-	type eface struct {
-		_type uint64
-		data  unsafe.Pointer
-	}
-	(*eface)(unsafe.Pointer(&iface))._type = runtime_g_type
-	if f, ok := reflect.TypeOf(iface).FieldByName("goid"); ok {
-		return f.Offset
-	}
-	panic("can not find g.goid field")
-}()
