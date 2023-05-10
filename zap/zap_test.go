@@ -275,7 +275,7 @@ func BenchmarkZapCaller(b *testing.B) {
 		zapcore.AddSync(io.Discard),
 		zapcore.InfoLevel,
 	)
-	logger := zap.New(core, zap.WithCaller(true))
+	logger := New(core, zap.WithCaller(false))
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
 		logger.Info("some log messages",
