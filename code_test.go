@@ -45,7 +45,10 @@ func TestNew(t *testing.T) {
 		assert.Equal(t, e.Code(), errCode)
 		assert.Equal(t, e.Msg(), fmt.Sprintf(errFormat, errMsg))
 		assert.True(t, len(e.cache.stack) > 0)
-		stack := parseSlow(pcs[:npc])
+		stack := []string{}
+		for _, c := range parseSlow(pcs[:npc]) {
+			stack = append(stack, c.String())
+		}
 		assert.Equal(t, stack, e.cache.stack)
 	})
 
@@ -55,7 +58,10 @@ func TestNew(t *testing.T) {
 		assert.Equal(t, e.Code(), errCode)
 		assert.Equal(t, e.Msg(), errMsg)
 		assert.True(t, len(e.cache.stack) > 0)
-		stack := parseSlow(pcs[:npc])
+		stack := []string{}
+		for _, c := range parseSlow(pcs[:npc]) {
+			stack = append(stack, c.String())
+		}
 		assert.Equal(t, stack, e.cache.stack)
 	})
 
@@ -76,7 +82,10 @@ func Test_Code(t *testing.T) {
 		assert.Equal(t, e.Code(), errCode)
 		assert.Equal(t, e.Msg(), errMsg)
 		assert.True(t, len(e.cache.stack) > 0)
-		stack := parseSlow(pcs[:npc])
+		stack := []string{}
+		for _, c := range parseSlow(pcs[:npc]) {
+			stack = append(stack, c.String())
+		}
 		assert.Equal(t, stack, e.cache.stack)
 	})
 
@@ -372,7 +381,6 @@ func BenchmarkCaseMarshal(b *testing.B) {
 	})
 }
 
-//
 func BenchmarkNew(b *testing.B) {
 	runs := []struct {
 		funcName string //函数名字

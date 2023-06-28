@@ -146,13 +146,95 @@ BenchmarkNewAndFormatting/pkg.text.%v-10-12    95394    11317 ns/op  4315 B/op  
 
 2. errors/logrus 和 errors/zap 性能提升
 
-errors/logrus 和 errors/zap 分别替换了 [sirupsen/logrus](https://github.com/sirupsen/logrus) 和 [go.uber.org/zap](https://github.com/uber-go/zap) 的代码行号获取逻辑。
+errors/logrus、 errors/zap 和 errors/zerolog 分别替换了 [sirupsen/logrus](https://github.com/sirupsen/logrus) 、 [go.uber.org/zap](https://github.com/uber-go/zap) 和 [rs/zerolog](https://github.com/rs/zerolog) 的代码行号获取逻辑。
 
-由结果可知，能减少 1300ns ~ 2500ns 的损耗，而且是兼容性升级，非常值得尝试。
+由结果可知，能减少 500ns ~ 2500ns 的损耗，而且是兼容性升级，非常值得尝试。
 
-[BenchmarkLog](https://github.com/lxt1045/errors/blob/main/zap/zap_test.go#L85)
+[BenchmarkLog](https://github.com/lxt1045/errors/blob/main/zerolog/zerolog_test.go#L74)
 ```go
 func BenchmarkLog(b *testing.B) {
+	b.Run("zerolog", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		logger := zerolog.New(io.Discard)
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			logger.Info().
+				Str("string", `some string format log information`).
+				Int("int", 3).
+				Msg("some log messages")
+		}
+	})
+	b.Run("zerolog+lxt", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		logger := New(io.Discard)
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			logger.Info().
+				Str("string", `some string format log information`).
+				Int("int", 3).
+				Msg("some log messages")
+		}
+	})
+	b.Run("zerolog+caller", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		logger := zerolog.New(io.Discard)
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			logger.Info().
+				Caller().
+				Str("string", `some string format log information`).
+				Int("int", 3).
+				Msg("some log messages")
+		}
+	})
+	b.Run("zerolog+lxt caller", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		logger := New(io.Discard)
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			logger.Info().
+				Caller().
+				Str("string", `some string format log information`).
+				Int("int", 3).
+				Msg("some log messages")
+		}
+	})
+
+	b.Run("zerolog+context-caller", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		logger := zerolog.New(io.Discard)
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			log := logger.
+				With().
+				Caller().Logger()
+			log.Info().
+				Str("string", `some string format log information`).
+				Int("int", 3).
+				Msg("some log messages")
+		}
+	})
+	b.Run("zerolog+lxt context-caller", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		logger := New(io.Discard)
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			log := logger.
+				With().
+				Caller().Logger()
+			log.Info().
+				Str("string", `some string format log information`).
+				Int("int", 3).
+				Msg("some log messages")
+		}
+	})
+
 	b.Run("logrus", func(b *testing.B) {
 		b.StopTimer()
 		b.ReportAllocs()
@@ -245,7 +327,7 @@ func BenchmarkLog(b *testing.B) {
 			zapcore.AddSync(io.Discard),
 			zapcore.InfoLevel,
 		)
-		logger := New(core, zap.WithCaller(false))
+		logger := lxtzaplog.New(core, zap.WithCaller(false))
 		b.StartTimer()
 		for i := 0; i < b.N; i++ {
 			logger.Info("some log messages",
@@ -308,7 +390,7 @@ func BenchmarkLog(b *testing.B) {
 			zapcore.AddSync(io.Discard),
 			zapcore.InfoLevel,
 		)
-		logger := New(core, zap.WithCaller(false))
+		logger := lxtzaplog.New(core, zap.WithCaller(false))
 		sugar := logger.Sugar()
 		b.StartTimer()
 		for i := 0; i < b.N; i++ {
@@ -333,26 +415,57 @@ func BenchmarkLog(b *testing.B) {
 ```
 测试结果如下：
 ```sh
+pkg: github.com/lxt1045/errors/zerolog
+cpu: AMD Ryzen 9 7940H w/ Radeon 780M Graphics
+BenchmarkLog
+BenchmarkLog/zerolog
+BenchmarkLog/zerolog-16
+16198856	        71.87 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLog/zerolog+lxt
+BenchmarkLog/zerolog+lxt-16
+15661706	        71.98 ns/op	       0 B/op	       0 allocs/op
+BenchmarkLog/zerolog+caller
+BenchmarkLog/zerolog+caller-16
+ 1704080	       708.4 ns/op	     320 B/op	       4 allocs/op
+BenchmarkLog/zerolog+lxt_caller
+BenchmarkLog/zerolog+lxt_caller-16
+ 7110272	       162.0 ns/op	      83 B/op	       2 allocs/op
+BenchmarkLog/zerolog+context-caller
+BenchmarkLog/zerolog+context-caller-16
+  876045	      1393 ns/op	     856 B/op	       7 allocs/op
+BenchmarkLog/zerolog+lxt_context-caller
+BenchmarkLog/zerolog+lxt_context-caller-16
+ 2933074	       406.9 ns/op	     608 B/op	       5 allocs/op
 BenchmarkLog/logrus
-BenchmarkLog/logrus-12         	  382123	      3144 ns/op	    1361 B/op	      23 allocs/op
+BenchmarkLog/logrus-16
+  560250	      2042 ns/op	    1362 B/op	      23 allocs/op
 BenchmarkLog/logrus+caller
-BenchmarkLog/logrus+caller-12  	  173437	      6745 ns/op	    2355 B/op	      34 allocs/op
+BenchmarkLog/logrus+caller-16
+  238459	      5203 ns/op	    2388 B/op	      34 allocs/op
 BenchmarkLog/logrus+lxt_caller
-BenchmarkLog/logrus+lxt_caller-12         	  239078	      4836 ns/op	    2082 B/op	      31 allocs/op
+BenchmarkLog/logrus+lxt_caller-16
+  374670	      3571 ns/op	    2084 B/op	      31 allocs/op
 BenchmarkLog/zap
-BenchmarkLog/zap-12                       	 1457443	       812.7 ns/op	     152 B/op	       3 allocs/op
+BenchmarkLog/zap-16
+ 2589802	       486.4 ns/op	     152 B/op	       3 allocs/op
 BenchmarkLog/zap+caller
-BenchmarkLog/zap+caller-12                	  461288	      2391 ns/op	     401 B/op	       6 allocs/op
+BenchmarkLog/zap+caller-16
+  769772	      1631 ns/op	     425 B/op	       6 allocs/op
 BenchmarkLog/zap+lxt_caller
-BenchmarkLog/zap+lxt_caller-12            	 1000000	      1053 ns/op	     409 B/op	       4 allocs/op
+BenchmarkLog/zap+lxt_caller-16
+ 1563028	       791.4 ns/op	     409 B/op	       4 allocs/op
 BenchmarkLog/zap-sugar
-BenchmarkLog/zap-sugar-12                 	 1411080	       848.2 ns/op	     112 B/op	       4 allocs/op
+BenchmarkLog/zap-sugar-16
+ 2392736	       520.7 ns/op	     112 B/op	       4 allocs/op
 BenchmarkLog/zap-sugar+caller
-BenchmarkLog/zap-sugar+caller-12          	  388030	      3542 ns/op	     361 B/op	       7 allocs/op
+BenchmarkLog/zap-sugar+caller-16
+  590670	      1939 ns/op	     385 B/op	       7 allocs/op
 BenchmarkLog/zap-sugar+lxt_caller
-BenchmarkLog/zap-sugar+lxt_caller-12      	 1171387	      1015 ns/op	     176 B/op	       5 allocs/op
+BenchmarkLog/zap-sugar+lxt_caller-16
+ 1537038	       806.3 ns/op	     176 B/op	       5 allocs/op
 BenchmarkLog/lxt_caller
-BenchmarkLog/lxt_caller-12                	35303271	        32.32 ns/op	      24 B/op	       1 allocs/op
+BenchmarkLog/lxt_caller-16
+39783445	        29.44 ns/op	      32 B/op	       1 allocs/op
 ```
 
 ## 设计思路

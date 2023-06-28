@@ -20,20 +20,18 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//go:build amd64
-// +build amd64
+//go:build !amd64
+// +build !amd64
 
 package errors
 
 import (
+	"unsafe"
 	_ "unsafe" //nolint:bgolint
 )
 
-//go:noinline
-func getPC() [1]uintptr
+var getPC func() [1]uintptr = getPCSlow
 
-//go:noinline
-func GetPC() uintptr
+var GetPC func() uintptr = *(*func() uintptr)(unsafe.Pointer(&getPC))
 
-//go:noinline
-func buildStack(s []uintptr) int
+var buildStack func(s []uintptr) int = buildStackSlow

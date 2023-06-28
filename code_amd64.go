@@ -28,7 +28,9 @@ func NewCode(skip, code int, format string, a ...interface{}) (c *Code) {
 		pcs1 := make([]uintptr, DefaultDepth)
 		npc1 := runtime.Callers(baseSkip, pcs1[:DefaultDepth])
 		cs = &callers{}
-		cs.stack = parseSlow(pcs1[:npc1])
+		for _, c := range parseSlow(pcs1[:npc1]) {
+			cs.stack = append(cs.stack, c.String())
+		}
 		l := 0
 		for i, str := range cs.stack {
 			// 检查是否需要转换 JSON 特殊字符串

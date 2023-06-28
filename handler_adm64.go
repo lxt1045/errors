@@ -27,6 +27,7 @@ package errors
 
 import (
 	"fmt"
+	"strconv"
 	_ "unsafe" //nolint:bgolint
 )
 
@@ -49,7 +50,7 @@ func (t handler) Check(err error) {
 	if parent != t.parent {
 		cs := toCallers([]uintptr{parent, t.parent, GetPC()})
 		e := fmt.Errorf("handler.Check() should be called in [%s] not in [%s]; file:%s",
-			cs[1].Func, cs[0].Func, cs[2].File)
+			cs[1].Func, cs[0].Func, cs[2].File+":"+strconv.Itoa(cs[2].Line))
 		if err != nil {
 			e = fmt.Errorf("%w; %+v", err, e)
 		}

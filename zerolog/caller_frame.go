@@ -20,20 +20,62 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//go:build amd64
-// +build amd64
-
-package errors
+package zerolog
 
 import (
+	"path/filepath"
+	"runtime"
+	"strings"
+	"sync/atomic"
+	"unsafe"
 	_ "unsafe" //nolint:bgolint
 )
 
-//go:noinline
-func getPC() [1]uintptr
+type caller struct {
+	Func string
+	File string
+	Line int
+}
 
-//go:noinline
-func GetPC() uintptr
+var (
+	mapCaller unsafe.Pointer = func() unsafe.Pointer {
+		m := make(map[uintptr]*caller)
+		return unsafe.Pointer(&m)
+	}()
+)
 
-//go:noinline
-func buildStack(s []uintptr) int
+// CallerFrame 使用 Read-copy update(RCU) 缓存提高性能
+func CallerFrame(l uintptr) (cf *caller) {
+	mPCs := *(*map[uintptr]*caller)(atomic.LoadPointer(&mapCaller))
+	cf, ok := mPCs[l]
+	if !ok {
+		c, _ := runtime.CallersFrames([]uintptr{l}).Next()
+		file := c.File
+		iSeparator := strings.LastIndexByte(file, filepath.Separator)
+		if iSeparator > 0 {
+			iSeparator = strings.LastIndexByte(file[:iSeparator], filepath.Separator)
+			if iSeparator > 0 {
+				file = file[iSeparator+1:]
+			}
+		}
+		cf = &caller{
+			Func: c.Function,
+			File: file,
+			Line: c.Line,
+		}
+		mPCs2 := make(map[uintptr]*caller, len(mPCs)+10)
+		mPCs2[l] = cf
+		for {
+			p := atomic.LoadPointer(&mapCaller)
+			mPCs = *(*map[uintptr]*caller)(p)
+			for k, v := range mPCs {
+				mPCs2[k] = v
+			}
+			swapped := atomic.CompareAndSwapPointer(&mapCaller, p, unsafe.Pointer(&mPCs2))
+			if swapped {
+				break
+			}
+		}
+	}
+	return
+}

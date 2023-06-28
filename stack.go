@@ -20,20 +20,58 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//go:build amd64
-// +build amd64
-
 package errors
 
 import (
+	"runtime"
 	_ "unsafe" //nolint:bgolint
 )
 
-//go:noinline
-func getPC() [1]uintptr
+func getPCSlow() (pcs [1]uintptr) {
+	runtime.Callers(3, pcs[:])
+	return
+}
 
-//go:noinline
-func GetPC() uintptr
+func buildStackSlow(s []uintptr) int {
+	return runtime.Callers(3, s[:])
+}
 
-//go:noinline
-func buildStack(s []uintptr) int
+func CallersSkip(skip int) (cs []caller) {
+	pcs := pool.Get().(*[DefaultDepth]uintptr)
+	for i := range pcs {
+		pcs[i] = 0
+	}
+	n := buildStack(pcs[:]) //仅当特征码使用，有点大材小用
+	for i := n; i < DefaultDepth; i++ {
+		pcs[i] = 0
+	}
+
+	//
+	cs = cacheCallers.Get(*pcs)
+	if cs == nil {
+		pcs1 := make([]uintptr, DefaultDepth)
+		npc1 := runtime.Callers(baseSkip, pcs1[:DefaultDepth])
+		cs = parseSlow(pcs1[:npc1])
+
+		cacheCallers.Set(*pcs, cs)
+	}
+	pool.Put(pcs)
+	cs = cs[skip:]
+
+	return
+}
+
+// CallerFrame 使用 Read-copy update(RCU) 缓存提高性能
+func CallerFrame(l uintptr) (c *caller) {
+	c = cacheCaller.Get(l)
+	if c != nil {
+		return
+	}
+
+	cs := parseSlow([]uintptr{l})
+	if len(cs) > 0 {
+		c = &cs[0]
+		cacheCaller.Set(l, c)
+	}
+	return
+}

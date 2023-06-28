@@ -46,7 +46,7 @@ var (
 	}
 )
 
-//MarshalJSON 将err序列化为json格式
+// MarshalJSON 将err序列化为json格式
 func MarshalJSON(err error) (bs []byte) {
 	buf := &writeBuffer{}
 	marshalJSON(2, buf, err)
@@ -57,7 +57,7 @@ func MarshalJSON(err error) (bs []byte) {
 	return append(bs, `]}`...)
 }
 
-//marshalJSON 递归 Unwrap 并序列化为 JSON 格式
+// marshalJSON 递归 Unwrap 并序列化为 JSON 格式
 func marshalJSON(size int, buf *writeBuffer, err error) {
 	switch e := err.(type) {
 	//如果将 *wrapper 和 *Code 合成一个 interface{} 分支, 将导致性能退化
@@ -142,6 +142,7 @@ func marshalText(size int, buf *writeBuffer, err error) {
 type caller struct {
 	File string
 	Func string
+	Line int
 }
 
 func toCaller(f runtime.Frame) caller { // nolint:gocritic
@@ -177,7 +178,8 @@ func toCaller(f runtime.Frame) caller { // nolint:gocritic
 	}
 
 	return caller{
-		File: file + ":" + strconv.Itoa(line),
+		File: file, // + ":" + strconv.Itoa(line),
+		Line: line,
 		Func: funcName,
 	}
 }
@@ -197,7 +199,7 @@ func (c caller) String() (s string) {
 	if c.File == "" || c.Func == "" {
 		return ""
 	}
-	return "(" + c.File + ") " + c.Func
+	return "(" + c.File + ":" + strconv.Itoa(c.Line) + ") " + c.Func
 }
 
 func skipFile(f string) bool {

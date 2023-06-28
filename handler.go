@@ -24,6 +24,7 @@ package errors
 
 import (
 	"fmt"
+	"strconv"
 	"sync"
 
 	"github.com/petermattis/goid"
@@ -89,7 +90,7 @@ func Check(err *Code) {
 	if !ok {
 		cs := toCallers([]uintptr{GetPC()})
 		e := fmt.Errorf("should call defer Catch(NewGuard(),func()bool before call Check(err)); file:%s",
-			cs[0].File)
+			cs[0].File+":"+strconv.Itoa(cs[0].Line))
 		if err != nil {
 			e = fmt.Errorf("%w; %+v", err, e)
 		}

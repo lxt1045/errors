@@ -36,7 +36,9 @@ const (
 )
 
 var (
-	cacheStack = RCUCache[[DefaultDepth]uintptr, *callers]{}
+	cacheStack   = RCUCache[[DefaultDepth]uintptr, *callers]{}
+	cacheCallers = RCUCache[[DefaultDepth]uintptr, []caller]{}
+	cacheCaller  = RCUCache[uintptr, *caller]{}
 
 	pool = sync.Pool{
 		New: func() any { return &[DefaultDepth]uintptr{} },
@@ -56,7 +58,9 @@ func NewCodeSlow(skip, code int, format string, a ...interface{}) (c *Code) {
 	cs := cacheStack.Get(*pcs)
 	if cs == nil {
 		cs = &callers{}
-		cs.stack = parseSlow(pcs[:n])
+		for _, c := range parseSlow(pcs[:n]) {
+			cs.stack = append(cs.stack, c.String())
+		}
 		l := 0
 		for i, str := range cs.stack {
 			// 检查是否需要转换 JSON 特殊字符串
@@ -76,7 +80,7 @@ func NewCodeSlow(skip, code int, format string, a ...interface{}) (c *Code) {
 	return
 }
 
-//Clone 利用 code 和 msg 生成一个包含当前stack的新Error,
+// Clone 利用 code 和 msg 生成一个包含当前stack的新Error,
 func Clone(err error, skips ...int) error {
 	skip := 1
 	if len(skips) > 0 {
@@ -95,7 +99,7 @@ func NewErr(code int, format string, a ...interface{}) error {
 	return NewCode(1, code, format)
 }
 
-//New 替换 errors.New
+// New 替换 errors.New
 func New(format string, a ...interface{}) error {
 	if len(a) > 0 {
 		format = fmt.Sprintf(format, a...)
@@ -103,7 +107,7 @@ func New(format string, a ...interface{}) error {
 	return NewCode(1, DefaultCode, format)
 }
 
-//Errorf 替换 fmt.Errorf
+// Errorf 替换 fmt.Errorf
 func Errorf(format string, a ...interface{}) error {
 	if len(a) > 0 {
 		format = fmt.Sprintf(format, a...)
@@ -132,7 +136,7 @@ func (e *Code) Is(err error) bool {
 	return ok && e.code != -1 && e.code == to.code
 }
 
-//Error error interface, 序列化为string, 包含调用栈
+// Error error interface, 序列化为string, 包含调用栈
 func (e *Code) Error() string {
 	cache := e.fmt()
 	buf := NewWriteBuffer(cache.textSize())
@@ -147,7 +151,7 @@ func (e *Code) MarshalJSON() (bs []byte, err error) {
 	cache.json(buf)
 	return buf.Bytes(), nil
 }
-func parseSlow(pcs []uintptr) (cs []string) {
+func parseSlow(pcs []uintptr) (cs []caller) {
 	traces, more, f := runtime.CallersFrames(pcs), true, runtime.Frame{}
 	for more {
 		f, more = traces.Next()
@@ -155,7 +159,7 @@ func parseSlow(pcs []uintptr) (cs []string) {
 		if skipFile(c.File) && len(cs) > 0 {
 			break
 		}
-		cs = append(cs, c.String())
+		cs = append(cs, c)
 		if strings.HasSuffix(f.Function, "main.main") && len(cs) > 0 {
 			break
 		}
