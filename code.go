@@ -125,9 +125,11 @@ type Code struct {
 	skip  int
 }
 
-func (e *Code) Clone() *Code {
+func (e *Code) Clone(msg ...string) *Code {
+	if len(msg) > 0 {
+		return NewCode(1, e.code, e.msg+";"+strings.Join(msg, ";"))
+	}
 	return NewCode(1, e.code, e.msg)
-
 }
 
 func (e *Code) Code() int {
