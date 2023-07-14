@@ -38,6 +38,34 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
+func TestClone(t *testing.T) {
+	t.Run("Clone", func(t *testing.T) {
+		pcs := [DefaultDepth]uintptr{}
+		npc, e := runtime.Callers(1, pcs[:]), NewCode(0, errCode, errMsg).Clone()
+		assert.Equal(t, e.Code(), errCode)
+		assert.Equal(t, e.Msg(), errMsg)
+		assert.True(t, len(e.cache.stack) > 0)
+		stack := []string{}
+		for _, c := range parseSlow(pcs[:npc]) {
+			stack = append(stack, c.String())
+		}
+		assert.Equal(t, stack, e.cache.stack[e.skip:])
+	})
+	t.Run("Clone", func(t *testing.T) {
+		pcs := [DefaultDepth]uintptr{}
+		c := NewCode(0, errCode, errMsg)
+		npc, e := runtime.Callers(1, pcs[:]), Clone(c).(*Code)
+		assert.Equal(t, e.Code(), errCode)
+		assert.Equal(t, e.Msg(), errMsg)
+		assert.True(t, len(e.cache.stack) > 0)
+		stack := []string{}
+		for _, c := range parseSlow(pcs[:npc]) {
+			stack = append(stack, c.String())
+		}
+		assert.Equal(t, stack, e.cache.stack[e.skip:])
+	})
+}
+
 func TestNew(t *testing.T) {
 	t.Run("NewCodef", func(t *testing.T) {
 		pcs := [DefaultDepth]uintptr{}

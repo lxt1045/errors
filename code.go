@@ -28,6 +28,8 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+
+	"github.com/rs/zerolog"
 )
 
 const (
@@ -82,7 +84,7 @@ func NewCodeSlow(skip, code int, format string, a ...interface{}) (c *Code) {
 
 // Clone 利用 code 和 msg 生成一个包含当前stack的新Error,
 func Clone(err error, skips ...int) error {
-	skip := 1
+	skip := 0
 	if len(skips) > 0 {
 		skip += skips[0]
 	}
@@ -121,6 +123,11 @@ type Code struct {
 
 	cache *callers
 	skip  int
+}
+
+func (e *Code) Clone() *Code {
+	return NewCode(1, e.code, e.msg)
+
 }
 
 func (e *Code) Code() int {
@@ -247,5 +254,21 @@ func (f *fmtCode) text(buf *writeBuffer) {
 			buf.WriteString(str)
 		}
 		buf.WriteByte(';')
+	}
+}
+
+// MarshalZerologObject for zerolog
+func (e *Code) MarshalZerologObject(evt *zerolog.Event) {
+	evt.Int("code", e.code)
+	evt.Str("msg", e.msg)
+	evt.Array("stack", e)
+	return
+}
+
+func (e *Code) MarshalZerologArray(a *zerolog.Array) {
+	if e.cache != nil && len(e.cache.stack) > e.skip {
+		for _, str := range e.cache.stack[e.skip:] {
+			a.Str(str)
+		}
 	}
 }

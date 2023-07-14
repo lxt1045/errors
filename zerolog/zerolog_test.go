@@ -16,6 +16,26 @@ import (
 )
 
 func TestLog(t *testing.T) {
+	t.Run("fatal-zerolog", func(t *testing.T) {
+		defer func() {
+			t.Log("in defer")
+		}()
+		logger := zerolog.New(os.Stdout)
+		logger.Fatal().
+			Str("string", `some string format log information`).
+			Int("int", 3).
+			Msg("some log messages")
+	})
+	t.Run("panic-zerolog", func(t *testing.T) {
+		defer func() {
+			t.Log("in defer")
+		}()
+		logger := zerolog.New(os.Stdout)
+		logger.Panic().
+			Str("string", `some string format log information`).
+			Int("int", 3).
+			Msg("some log messages")
+	})
 	t.Run("lxt-zerolog", func(t *testing.T) {
 		logger := New(os.Stdout)
 		logger.Info().
