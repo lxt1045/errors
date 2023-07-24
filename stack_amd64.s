@@ -55,7 +55,7 @@ TEXT ·buildStack(SB), NOSPLIT, $24-8
 	MOVQ 	p+0(FP), AX		// s.ptr
 	MOVQ	$0, CX			// loop.i=0
 
-	MOVQ	+0(BP), BP      // skip +1
+	MOVQ	+0(BP), BP      // skip +1 // 和 GetPC() 不同，此函数有参数，需要入栈 BP，所以这里要跳过一层调用栈
 loop:
 	CMPQ	CX, DX			// if i >= s.cap { return }
 	JAE	return				// 无符号大于等于就跳转

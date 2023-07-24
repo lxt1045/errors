@@ -25,6 +25,8 @@ package errors
 import (
 	"runtime"
 	_ "unsafe" //nolint:bgolint
+
+	"github.com/rs/zerolog"
 )
 
 func getPCSlow() (pcs [1]uintptr) {
@@ -74,4 +76,22 @@ func CallerFrame(l uintptr) (c *caller) {
 		cacheCaller.Set(l, c)
 	}
 	return
+}
+
+type zeroStack struct {
+	stack []caller
+	skip  int
+}
+
+func (e *zeroStack) MarshalZerologArray(a *zerolog.Array) {
+	if len(e.stack) > e.skip {
+		for _, c := range e.stack[e.skip:] {
+			a.Str(c.String())
+		}
+	}
+}
+
+func ZerologStack(skip int) zeroStack {
+	cs := CallersSkip(skip + 1)
+	return zeroStack{stack: cs, skip: skip}
 }
