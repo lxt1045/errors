@@ -83,7 +83,7 @@ type zeroStack struct {
 	skip  int
 }
 
-func (e *zeroStack) MarshalZerologArray(a *zerolog.Array) {
+func (e zeroStack) MarshalZerologArray(a *zerolog.Array) {
 	if len(e.stack) > e.skip {
 		for _, c := range e.stack[e.skip:] {
 			a.Str(c.String())
