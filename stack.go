@@ -80,18 +80,15 @@ func CallerFrame(l uintptr) (c *caller) {
 
 type zeroStack struct {
 	stack []caller
-	skip  int
 }
 
 func (e zeroStack) MarshalZerologArray(a *zerolog.Array) {
-	if len(e.stack) > e.skip {
-		for _, c := range e.stack[e.skip:] {
-			a.Str(c.String())
-		}
+	for _, c := range e.stack {
+		a.Str(c.String())
 	}
 }
 
 func ZerologStack(skip int) zeroStack {
 	cs := CallersSkip(skip + 1)
-	return zeroStack{stack: cs, skip: skip}
+	return zeroStack{stack: cs}
 }
