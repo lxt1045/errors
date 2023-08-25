@@ -127,9 +127,14 @@ type Code struct {
 
 func (e *Code) Clone(msg ...string) *Code {
 	if len(msg) > 0 {
-		return NewCode(1, e.code, e.msg+";"+strings.Join(msg, ";"))
+		return NewCode(1, e.code, e.msg+"; "+strings.Join(msg, ";"))
 	}
 	return NewCode(1, e.code, e.msg)
+}
+
+func (e *Code) Clonef(format string, a ...interface{}) *Code {
+	msg := fmt.Sprintf(e.msg+"; "+format, a...)
+	return NewCode(1, e.code, msg)
 }
 
 func (e *Code) Code() int {
