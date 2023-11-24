@@ -8,16 +8,6 @@ import (
 )
 
 func TestCache(t *testing.T) {
-	t.Run("Cache", func(t *testing.T) {
-		cache := RCUCache[uintptr, uintptr]{
-			New: func(k uintptr) (v uintptr) {
-				return k
-			},
-		}
-		k := uintptr(100)
-		v := cache.Get(100)
-		assert.Equal(t, v, k)
-	})
 	t.Run("RCUCache", func(t *testing.T) {
 		cache := RCUCache[uintptr, uintptr]{
 			New: func(k uintptr) (v uintptr) {
@@ -28,6 +18,36 @@ func TestCache(t *testing.T) {
 		v := cache.Get(100)
 		assert.Equal(t, v, k)
 	})
+
+	cache := RCUCache[int, int]{
+		New: nil,
+	}
+	t.Run("RCUCache-Set1", func(t *testing.T) {
+		f := func(wg *sync.WaitGroup) {
+			defer wg.Done()
+			for i := 0; i < 1000; i++ {
+				cache.Set(i, i*100)
+			}
+		}
+
+		wg := &sync.WaitGroup{}
+		wg.Add(2)
+		go f(wg)
+		go f(wg)
+		wg.Wait()
+	})
+
+	t.Run("RCUCache-Set100", func(t *testing.T) {
+		for i := 0; i < 100; i++ {
+			cache.Set(i, i*100)
+		}
+
+		for i := 0; i < 100; i++ {
+			v := cache.Get(i)
+			assert.Equal(t, v, i*100)
+		}
+	})
+
 }
 
 /*

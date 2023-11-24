@@ -90,7 +90,7 @@ func (c *RCUCache[K, V]) Set(key K, value V) {
 		if swapped {
 			break
 		}
-		p := atomic.LoadPointer(&c.cache)
+		p = atomic.LoadPointer(&c.cache)
 		if p != nil {
 			cache = *(*map[K]V)(p)
 		}
