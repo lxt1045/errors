@@ -32,7 +32,8 @@ import (
 )
 
 const (
-	pathSeparator = string(os.PathSeparator)
+	pathSeparator     = string(os.PathSeparator)
+	samePathSeparator = os.PathSeparator == '/'
 )
 
 var (
@@ -40,7 +41,6 @@ var (
 
 	// skipPkgs里的pkg会被忽略
 	skipPrefixFiles = []string{
-		"github.com/cloudwego/kitex",
 		"testing/benchmark.go",
 		"testing/testing.go",
 	}
@@ -145,7 +145,7 @@ type caller struct {
 	Line int
 }
 
-func toCaller(f runtime.Frame) caller { // nolint:gocritic
+func toCaller1(f runtime.Frame) caller { // nolint:gocritic
 	funcName, file, line := f.Function, f.File, f.Line
 
 	// // /xxx@v0.0.3-0.20211019092134-6247f1f99488/...
@@ -175,6 +175,35 @@ func toCaller(f runtime.Frame) caller { // nolint:gocritic
 				break
 			}
 		}
+	}
+
+	return caller{
+		File: file, // + ":" + strconv.Itoa(line),
+		Line: line,
+		Func: funcName,
+	}
+}
+
+func toCaller(f runtime.Frame) caller { // nolint:gocritic
+	funcName, file, line := f.Function, f.File, f.Line
+
+	i := strings.LastIndexByte(funcName, os.PathSeparator)
+	if !samePathSeparator {
+		if i < 0 {
+			i = strings.LastIndexByte(funcName, '/')
+		}
+	}
+	if i >= 0 {
+		funcName = funcName[i+1:]
+	}
+	i = strings.LastIndex(file, pathSeparator)
+	if !samePathSeparator {
+		if i < 0 {
+			i = strings.LastIndexByte(file, '/')
+		}
+	}
+	if i >= 0 {
+		file = file[i+1:]
 	}
 
 	return caller{
