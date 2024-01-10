@@ -28,7 +28,9 @@ func TestLog(t *testing.T) {
 	})
 	t.Run("panic-zerolog", func(t *testing.T) {
 		defer func() {
-			t.Log("in defer")
+			if e := recover(); e != nil {
+				t.Log("in defer:", e)
+			}
 		}()
 		logger := zerolog.New(os.Stdout)
 		logger.Panic().
@@ -40,6 +42,7 @@ func TestLog(t *testing.T) {
 		logger := New(os.Stdout)
 		logger.Info().
 			Str("string", `some string format log information`).
+			Timestamp().
 			Int("int", 3).
 			Msg("some log messages")
 	})

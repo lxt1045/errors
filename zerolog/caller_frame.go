@@ -23,12 +23,17 @@
 package zerolog
 
 import (
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"sync/atomic"
 	"unsafe"
 	_ "unsafe" //nolint:bgolint
+)
+
+const (
+	samePathSeparator = os.PathSeparator == '/'
 )
 
 type caller struct {
@@ -52,11 +57,13 @@ func CallerFrame(l uintptr) (cf *caller) {
 		c, _ := runtime.CallersFrames([]uintptr{l}).Next()
 		file := c.File
 		iSeparator := strings.LastIndexByte(file, filepath.Separator)
-		if iSeparator > 0 {
-			iSeparator = strings.LastIndexByte(file[:iSeparator], filepath.Separator)
-			if iSeparator > 0 {
-				file = file[iSeparator+1:]
+		if !samePathSeparator {
+			if iSeparator < 0 {
+				iSeparator = strings.LastIndexByte(file, '/')
 			}
+		}
+		if iSeparator >= 0 {
+			file = file[iSeparator+1:]
 		}
 		cf = &caller{
 			Func: c.Function,

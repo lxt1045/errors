@@ -35,6 +35,40 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// Level defines log levels.
+type Level zerolog.Level
+
+const (
+	// DebugLevel defines debug log level.
+	DebugLevel = Level(zerolog.DebugLevel)
+	// InfoLevel defines info log level.
+	InfoLevel = Level(zerolog.InfoLevel)
+	// WarnLevel defines warn log level.
+	WarnLevel = Level(zerolog.WarnLevel)
+	// ErrorLevel defines error log level.
+	ErrorLevel = Level(zerolog.ErrorLevel)
+	// FatalLevel defines fatal log level.
+	FatalLevel = Level(zerolog.FatalLevel)
+	// PanicLevel defines panic log level.
+	PanicLevel = Level(zerolog.PanicLevel)
+	// NoLevel defines an absent log level.
+	NoLevel = Level(zerolog.NoLevel)
+	// Disabled disables the logger.
+	Disabled = Level(zerolog.Disabled)
+
+	// TraceLevel defines trace log level.
+	TraceLevel = Level(zerolog.TraceLevel)
+	// Values less than TraceLevel are handled as numbers.
+)
+
+var _ = func() bool {
+	zerolog.TimeFieldFormat = time.RFC3339Nano
+	// zerolog.DefaultContextLogger = func() *zerolog.Logger {
+	// 	return nil
+	// }()
+	return true
+}()
+
 type Logger struct {
 	zerolog.Logger
 }
@@ -45,8 +79,12 @@ type Event struct {
 	zerolog.Event
 }
 
+func SetGlobalLevel(l Level) {
+	zerolog.SetGlobalLevel(zerolog.Level(l))
+}
+
 func toZeroLogger(logger *Logger) *zerolog.Logger {
-	return &logger.Logger
+	return (*zerolog.Logger)(unsafe.Pointer(logger))
 }
 
 func toLogger(logger *zerolog.Logger) *Logger {
@@ -54,7 +92,7 @@ func toLogger(logger *zerolog.Logger) *Logger {
 }
 
 func toZeroContext(ctx *Context) *zerolog.Context {
-	return &ctx.Context
+	return (*zerolog.Context)(unsafe.Pointer(ctx))
 }
 
 func toContext(ctx *zerolog.Context) *Context {
@@ -65,7 +103,7 @@ func loggerToContext(logger *zerolog.Logger) *Context {
 }
 
 func toZeroEvent(event *Event) *zerolog.Event {
-	return &event.Event
+	return (*zerolog.Event)(unsafe.Pointer(event))
 }
 
 func toEvent(event *zerolog.Event) *Event {
@@ -877,10 +915,16 @@ var zeroEventSkipFrameOffset = func() uintptr {
 }()
 
 func getEventSkipFrame(e *Event) int {
+	if e == nil {
+		return zerolog.CallerSkipFrameCount
+	}
 	return *(*int)(unsafe.Pointer(uintptr(unsafe.Pointer(e)) + zeroEventSkipFrameOffset))
 }
 
 func (e *Event) Caller(skip ...int) *Event {
+	if e == nil {
+		return e
+	}
 	levelSkip := zerolog.CallerSkipFrameCount + getEventSkipFrame(e)
 	if len(skip) > 0 && skip[0] > 0 {
 		levelSkip += skip[0]
@@ -917,4 +961,19 @@ func (e *Event) IPPrefix(key string, pfx net.IPNet) *Event {
 // MACAddr adds MAC address to the event
 func (e *Event) MACAddr(key string, ha net.HardwareAddr) *Event {
 	return toEvent(toZeroEvent(e).MACAddr(key, ha))
+}
+
+func (e *Event) Msg(msg string) {
+	toZeroEvent(e).Msg(msg)
+}
+func (e *Event) Send() {
+	toZeroEvent(e).Send()
+}
+
+func (e *Event) Msgf(format string, v ...interface{}) {
+	toZeroEvent(e).Msgf(format, v...)
+}
+
+func (e *Event) MsgFunc(createMsg func() string) {
+	toZeroEvent(e).MsgFunc(createMsg)
 }
