@@ -44,18 +44,18 @@ func CallersSkip(skip int) (cs []caller) {
 		pcs[i] = 0
 	}
 	n := buildStack(pcs[:]) //仅当特征码使用，有点大材小用
-	for i := n; i < DefaultDepth; i++ {
-		pcs[i] = 0
-	}
+	// for i := n; i < DefaultDepth; i++ {
+	// 	pcs[i] = 0
+	// }
 
 	//
-	cs = cacheCallers.Get(*pcs)
+	cs = cacheCallers.Get(pcs, n)
 	if cs == nil {
 		pcs1 := make([]uintptr, DefaultDepth)
 		npc1 := runtime.Callers(baseSkip, pcs1[:DefaultDepth])
 		cs = parseSlow(pcs1[:npc1])
 
-		cacheCallers.Set(*pcs, cs)
+		cacheCallers.Set(pcs, n, cs)
 	}
 	pool.Put(pcs)
 	cs = cs[skip:]

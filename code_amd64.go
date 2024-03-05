@@ -18,12 +18,12 @@ func NewCode(skip, code int, format string, a ...interface{}) (c *Code) {
 		pcs[i] = 0
 	}
 	n := buildStack(pcs[:])
-	for i := n; i < DefaultDepth; i++ {
-		pcs[i] = 0
-	}
+	// for i := n; i < DefaultDepth; i++ {
+	// 	pcs[i] = 0
+	// }
 
 	//
-	cs := cacheStack.Get(*pcs)
+	cs := cacheStack.Get(pcs, n)
 	if cs == nil {
 		pcs1 := make([]uintptr, DefaultDepth)
 		npc1 := runtime.Callers(baseSkip, pcs1[:DefaultDepth])
@@ -42,7 +42,7 @@ func NewCode(skip, code int, format string, a ...interface{}) (c *Code) {
 		}
 		cs.attr |= uint64(l) << 32
 
-		cacheStack.Set(*pcs, cs)
+		cacheStack.Set(pcs, n, cs)
 	}
 	pool.Put(pcs)
 	c.cache = cs

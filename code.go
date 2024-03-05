@@ -38,8 +38,8 @@ const (
 )
 
 var (
-	cacheStack   = RCUCache[[DefaultDepth]uintptr, *callers]{}
-	cacheCallers = RCUCache[[DefaultDepth]uintptr, []caller]{}
+	cacheStack   = StackCache[*callers]{}
+	cacheCallers = StackCache[[]caller]{}
 	cacheCaller  = RCUCache[uintptr, *caller]{}
 
 	pool = sync.Pool{
@@ -57,7 +57,7 @@ func NewCodeSlow(skip, code int, format string, a ...interface{}) (c *Code) {
 	n := runtime.Callers(skip+baseSkip, pcs[:DefaultDepth-skip])
 	// key := toString(pcs[:n])
 
-	cs := cacheStack.Get(*pcs)
+	cs := cacheStack.Get(pcs, n)
 	if cs == nil {
 		cs = &callers{}
 		for _, c := range parseSlow(pcs[:n]) {
@@ -75,7 +75,7 @@ func NewCodeSlow(skip, code int, format string, a ...interface{}) (c *Code) {
 		cs.attr |= uint64(l) << 32
 
 		// 加入
-		cacheStack.Set(*pcs, cs)
+		cacheStack.Set(pcs, n, cs)
 	}
 	pool.Put(pcs)
 	c.cache = cs

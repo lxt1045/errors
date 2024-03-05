@@ -23,6 +23,7 @@
 package errors
 
 import (
+	"sync"
 	"sync/atomic"
 	"unsafe"
 )
@@ -36,6 +37,17 @@ type RCUCache[K comparable, V any] struct {
 
 	cache unsafe.Pointer
 	New   func(K) V
+}
+
+func (c *RCUCache[K, V]) JustGet(key K) (v V, ok bool) {
+	var cache map[K]V
+
+	if p := atomic.LoadPointer(&c.cache); p != nil {
+		cache = *(*map[K]V)(p)
+		v, ok = cache[key]
+	}
+
+	return
 }
 
 func (c *RCUCache[K, V]) Get(key K) (v V) {
@@ -95,4 +107,61 @@ func (c *RCUCache[K, V]) Set(key K, value V) {
 			cache = *(*map[K]V)(p)
 		}
 	}
+}
+
+type StackCache[V any] struct {
+	RCUCache[string, V]
+}
+
+func (c *StackCache[V]) Get(s *[DefaultDepth]uintptr, l int) (v V) {
+	v, ok := c.JustGet(stackToStr(s, l))
+	if ok || c.New == nil {
+		return
+	}
+	return c.RCUCache.Get(stackToNewStr(s, l))
+}
+
+func (c *StackCache[V]) Set(s *[DefaultDepth]uintptr, l int, v V) {
+	c.RCUCache.Set(stackToNewStr(s, l), v)
+}
+
+type stackCache1[V any] struct {
+	noCopy noCopy //nolint:unused
+	sync.RWMutex
+	m    map[string]V
+	fNew func(s *[DefaultDepth]uintptr, l int) V
+}
+
+func NewStackCache[V any](fNew func(s *[DefaultDepth]uintptr, l int) V) *stackCache1[V] {
+	return &stackCache1[V]{
+		m:    make(map[string]V),
+		fNew: fNew,
+	}
+}
+
+func (c *stackCache1[V]) Get(s *[DefaultDepth]uintptr, l int) (v V) {
+	c.RLock()
+	v, ok := c.m[stackToStr(s, l)]
+	c.RUnlock()
+	if ok {
+		return
+	}
+	v = c.fNew(s, l)
+	c.Set(s, l, v)
+	return
+}
+
+func (c *stackCache1[V]) Set(s *[DefaultDepth]uintptr, l int, v V) {
+	c.Lock()
+	defer c.Unlock()
+	c.m[stackToNewStr(s, l)] = v
+}
+
+func stackToNewStr(s *[DefaultDepth]uintptr, l int) string {
+	p := (*byte)(unsafe.Pointer(s))
+	return string(unsafe.Slice(p, l*8))
+}
+func stackToStr(s *[DefaultDepth]uintptr, l int) string {
+	p := (*byte)(unsafe.Pointer(s))
+	return unsafe.String(p, l*8)
 }

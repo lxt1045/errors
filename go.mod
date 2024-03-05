@@ -1,6 +1,6 @@
 module github.com/lxt1045/errors
 
-go 1.18
+go 1.20
 
 require (
 	github.com/petermattis/goid v0.0.0-20220526132513-07eaf5d0b9f4
