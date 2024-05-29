@@ -45,6 +45,7 @@ func TestHandlerCheck0(t *testing.T) {
 	fmt.Printf("6 -> ")
 	return
 }
+
 func TestHandlerCheck(t *testing.T) {
 	t.Run("NewLine1", func(t *testing.T) {
 	gotohandler:

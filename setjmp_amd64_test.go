@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/lxt1045/errors/jmp"
 	"github.com/rs/zerolog"
 )
 
@@ -147,6 +148,54 @@ func BenchmarkSetJMP1(b *testing.B) {
 				continue
 			}
 			handler.Longjmp(err)
+		}
+		b.StopTimer()
+	})
+
+	b.Run("jmp.Try(nil)", func(b *testing.B) {
+		b.ReportAllocs()
+		pc, err1 := jmp.Set()
+		count := 0
+		if err1 != nil {
+			b.Fatal("never goto here")
+		}
+		if count++; count > 1 {
+			b.Fatal("never goto here")
+		}
+		for i := 0; i < b.N; i++ {
+			jmp.Try(pc, nil)
+		}
+		b.StopTimer()
+	})
+	b.Run("jmp.Try(err)", func(b *testing.B) {
+		b.ReportAllocs()
+		pc, err1 := jmp.Set()
+		for i := 0; i < b.N; i++ {
+			if i == 0 {
+				pc, err1 = jmp.Set()
+				if err1 != nil {
+					continue
+				}
+			}
+			jmp.Try(pc, err)
+		}
+		b.StopTimer()
+	})
+	b.Run("jmp.Set()", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			jmp.Set()
+		}
+		b.StopTimer()
+	})
+	b.Run("jmp.Set(err)", func(b *testing.B) {
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			pc, err1 := jmp.Set()
+			if err1 != nil {
+				continue
+			}
+			jmp.Try(pc, err)
 		}
 		b.StopTimer()
 	})

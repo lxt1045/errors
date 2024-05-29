@@ -30,7 +30,7 @@ import (
 	"strconv"
 	_ "unsafe" //nolint:bgolint
 
-	"github.com/lxt1045/errors/g"
+	"github.com/lxt1045/errors/jmp"
 )
 
 /*
@@ -41,7 +41,7 @@ func Setjmp() (jump, error) //nolint:bgolint
 
 func longjmp(jmp jump, err error) uintptr
 
-var defer_offset = g.G__defer_offset
+var defer_offset = jmp.G__defer_offset
 
 type jump struct {
 	pc     uintptr //nolint:unused

@@ -20,56 +20,25 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//go:build gc && go1.6 && !go1.9
-// +build gc,go1.6,!go1.9
+//go:build (386 || amd64 || amd64p32 || arm || arm64) && gc && go1.5
 
-package g
+package jmp
 
-// Just enough of the structs from runtime/runtime2.go to get the offset to goid.
-// See https://github.com/golang/go/blob/release-branch.go1.6/src/runtime/runtime2.go
+import (
+	_ "unsafe" //nolint:bgolint
+)
 
-type stack struct {
-	lo uintptr
-	hi uintptr
-}
+// 类似 C 语言的 setjmp.h 里的 setjmp() 函数
+func Set() (PC, error) //nolint:bgolint
 
-type gobuf struct {
-	sp   uintptr
-	pc   uintptr
-	g    uintptr
-	ctxt uintptr
-	ret  uintptr
-	lr   uintptr
-	bp   uintptr
-}
+// 类似 C 语言的 setjmp.h 里的 longjmp() 函数
+// 注意 Try() 必须和生成 PC 的 Set() 函数在同一个函数内，否则会无效
+func Try(pc PC, err error)
 
-type g struct {
-	stack       stack
-	stackguard0 uintptr
-	stackguard1 uintptr
+type PC struct {
+	pc     uintptr //nolint:unused
+	parent uintptr //nolint:unused
+	_defer uintptr //nolint:unused
 
-	_panic       uintptr
-	_defer       uintptr
-	m            uintptr
-	stackAlloc   uintptr
-	sched        gobuf
-	syscallsp    uintptr
-	syscallpc    uintptr
-	stkbar       []uintptr
-	stkbarPos    uintptr
-	stktopsp     uintptr
-	param        uintptr
-	atomicstatus uint32
-	stackLock    uint32
-	goid         int64 // Here it is!
-}
-
-type _defer struct {
-	siz     int32
-	started bool
-	sp      uintptr // sp at time of defer
-	pc      uintptr
-	fn      uintptr
-	_panic  uintptr // panic that is running defer
-	link    *_defer
+	// noCopy noCopy //nolint:unused
 }

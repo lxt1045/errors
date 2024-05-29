@@ -20,13 +20,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//go:build go1.5 && !go1.6
-// +build go1.5,!go1.6
+//go:build gc && go1.9
 
-package g
-
-// Just enough of the structs from runtime/runtime2.go to get the offset to goid.
-// See https://github.com/golang/go/blob/release-branch.go1.5/src/runtime/runtime2.go
+package jmp
 
 type stack struct {
 	lo uintptr
@@ -51,24 +47,12 @@ type g struct {
 	_panic       uintptr
 	_defer       uintptr
 	m            uintptr
-	stackAlloc   uintptr
 	sched        gobuf
 	syscallsp    uintptr
 	syscallpc    uintptr
-	stkbar       []uintptr
-	stkbarPos    uintptr
+	stktopsp     uintptr
 	param        uintptr
 	atomicstatus uint32
 	stackLock    uint32
-	goid         int64 // Here it is!
-}
-
-type _defer struct {
-	siz     int32
-	started bool
-	sp      uintptr // sp at time of defer
-	pc      uintptr
-	fn      uintptr
-	_panic  uintptr // panic that is running defer
-	link    *_defer
+	goid         uint64
 }

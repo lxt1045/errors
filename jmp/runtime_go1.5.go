@@ -20,26 +20,45 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//go:build (386 || amd64 || amd64p32 || arm || arm64) && gc && go1.5
+//go:build go1.5 && !go1.6
+// +build go1.5,!go1.6
 
-package g
+package jmp
 
-import "reflect"
+// Just enough of the structs from runtime/runtime2.go to get the offset to goid.
+// See https://github.com/golang/go/blob/release-branch.go1.5/src/runtime/runtime2.go
 
-// Defined in goid_go1.5.s.
-func getg() *g
-
-func GetGoid() uint64 {
-	return getg().goid
+type stack struct {
+	lo uintptr
+	hi uintptr
 }
 
-// func GetDefer() *_defer {
-// 	return getg()._defer
-// }
+type gobuf struct {
+	sp   uintptr
+	pc   uintptr
+	g    uintptr
+	ctxt uintptr
+	ret  uintptr
+	lr   uintptr
+	bp   uintptr
+}
 
-var G__defer_offset uintptr = func() uintptr {
-	if f, ok := reflect.TypeOf(g{}).FieldByName("_defer"); ok {
-		return f.Offset
-	}
-	panic("can not find g.goid field")
-}()
+type g struct {
+	stack       stack
+	stackguard0 uintptr
+	stackguard1 uintptr
+
+	_panic       uintptr
+	_defer       uintptr
+	m            uintptr
+	stackAlloc   uintptr
+	sched        gobuf
+	syscallsp    uintptr
+	syscallpc    uintptr
+	stkbar       []uintptr
+	stkbarPos    uintptr
+	param        uintptr
+	atomicstatus uint32
+	stackLock    uint32
+	goid         uint64
+}

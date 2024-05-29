@@ -20,70 +20,25 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//go:build gc && go1.22
-// +build gc,go1.22
+//go:build (386 || amd64 || amd64p32 || arm || arm64) && gc && go1.5
 
-package g
 
-import (
-	"sync/atomic"
-)
+#include "textflag.h"
 
-type stack struct {
-	lo uintptr
-	hi uintptr
-}
-
-type gobuf struct {
-	sp   uintptr
-	pc   uintptr
-	g    uintptr
-	ctxt uintptr
-	ret  uintptr
-	lr   uintptr
-	bp   uintptr
-}
-
-type g struct {
-	stack        stack
-	stackguard0  uintptr
-	stackguard1  uintptr
-	_panic       uintptr
-	_defer       uintptr // *_defer
-	m            uintptr
-	sched        gobuf
-	syscallsp    uintptr
-	syscallpc    uintptr
-	stktopsp     uintptr
-	param        uintptr
-	atomicstatus atomic.Uint32
-	stackLock    uint32
-	goid         uint64
-}
-
-// type _defer struct {
-// 	heap      bool
-// 	rangefunc bool
-// 	sp        uintptr
-// 	pc        uintptr
-// 	fn        func()
-// 	link      *_defer
-
-// 	head *atomic.Pointer[_defer]
-// }
-
-// func (d *_defer) GetLink() *_defer {
-// 	return d.link
-// }
-
-// func (d *_defer) SetLink(l *_defer) {
-// 	d.link = l
-// }
-
-// func (d *_defer) GetHead() *_defer {
-// 	return d.head.Load()
-// }
-
-// func (d *_defer) SetHead(l *_defer) {
-// 	d.head.Store(l)
-// }
+// func getg() *g
+TEXT ·getg(SB),NOSPLIT,$0-8
+#ifdef GOARCH_386
+	MOVL (TLS), AX
+	MOVL AX, ret+0(FP)
+#endif
+#ifdef GOARCH_amd64
+	MOVQ (TLS), AX
+	MOVQ AX, ret+0(FP)
+#endif
+#ifdef GOARCH_arm
+	MOVW g, ret+0(FP)
+#endif
+#ifdef GOARCH_arm64
+	MOVD g, ret+0(FP)
+#endif
+	RET
