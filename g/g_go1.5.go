@@ -20,44 +20,26 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//go:build amd64
-// +build amd64
+//go:build (386 || amd64 || amd64p32 || arm || arm64) && gc && go1.5
 
-package errors
+package g
 
-import (
-	"fmt"
-	"strconv"
-	_ "unsafe" //nolint:bgolint
-)
+import "reflect"
 
-var tryHandlerErr func(error)
+// Defined in goid_go1.5.s.
+func getg() *g
 
-func NewHandler() (handler, error) //nolint:bgolint
-
-func tryJump(pc, parent uintptr, err error) uintptr
-
-type handler struct {
-	pc     uintptr
-	parent uintptr
+func GetGoid() uint64 {
+	return getg().goid
 }
 
-//go:noinline
-func (t handler) Check(err error) {
-	//还是要加上检查，否则报错信息太难看
-	// 但是检查时只要检查 更上一级的 PC 是否相等即可，不需要复杂的 map 存储了！！！
-	parent := tryJump(t.pc, t.parent, err)
-	if parent != t.parent {
-		cs := toCallers([]uintptr{parent, t.parent, GetPC()})
-		e := fmt.Errorf("handler.Check() should be called in [%s] not in [%s]; file:%s",
-			cs[1].Func, cs[0].Func, cs[2].File+":"+strconv.Itoa(cs[2].Line))
-		if err != nil {
-			e = fmt.Errorf("%w; %+v", err, e)
-		}
-		if tryHandlerErr != nil {
-			tryHandlerErr(e)
-			return
-		}
-		panic(e)
+// func GetDefer() *_defer {
+// 	return getg()._defer
+// }
+
+var G__defer_offset uintptr = func() uintptr {
+	if f, ok := reflect.TypeOf(g{}).FieldByName("_defer"); ok {
+		return f.Offset
 	}
-}
+	panic("can not find g.goid field")
+}()

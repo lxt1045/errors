@@ -21,7 +21,7 @@ func TestLog(t *testing.T) {
 			t.Log("in defer")
 		}()
 		logger := zerolog.New(os.Stdout)
-		logger.Fatal().
+		logger.Info().
 			Str("string", `some string format log information`).
 			Int("int", 3).
 			Msg("some log messages")

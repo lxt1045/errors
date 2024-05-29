@@ -37,7 +37,6 @@ TEXT ·tryJump(SB),NOSPLIT, $0-40
 	MOVQ	+8(R14), R13	
 	MOVQ	R13, ret+32(FP)
 	
-	// CMPQ	24(BP), R13
 	CMPQ	pc+8(FP), R13  // parent 是否相等
 	JE	checkerr
 	RET
@@ -60,7 +59,7 @@ gotohandler:
 
 
 // func NewHandler() (handler, error)
-TEXT ·NewHandler(SB),NOSPLIT,$32-24
+TEXT ·NewHandler(SB),NOSPLIT,$0-24
 	NO_LOCAL_POINTERS
 	MOVQ	$0, ret+0(FP)  // 返回值清零
 	MOVQ	$0, ret+8(FP)
@@ -69,8 +68,11 @@ TEXT ·NewHandler(SB),NOSPLIT,$32-24
 	MOVQ	pc-8(FP), R13  // pc
 	MOVQ	R13, ret+0(FP)
 
-	MOVQ	(BP), R14	   // parent_pc
-	MOVQ	+8(R14), R13
+	// 函数栈帧大小(本地变量占用空间大小)不为0时，BP已经入栈，需要退出
+	// MOVQ	(BP), R14	   // parent_pc
+	// MOVQ	+8(R14), R13
+	// 函数栈帧大小(本地变量占用空间大小)为0时，BP未入栈
+	MOVQ	8(BP), R13	   // parent_pc
 	MOVQ	R13, ret+8(FP)
 
 	RET

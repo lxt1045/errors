@@ -1,5 +1,7 @@
 # errors 包
 
+<!-- https://github.com/bracesdev/errtrace 有类似功能 -->
+
 ## 原理
 一句话：通过汇编，从调用栈中获取 pc 和 pc 列表。\
 性能提升的具体细节，这两篇技术文章中有详细说明：
