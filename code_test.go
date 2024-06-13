@@ -243,17 +243,26 @@ func Test_Xi(t *testing.T) {
 }
 
 func BenchmarkEscape(b *testing.B) {
+	b.Run("escape-buildStack2", func(b *testing.B) {
+		pcs := [DefaultDepth]uintptr{}
+		_ = buildStack2(pcs[:])
+		_ = buildStack(pcs[8:])
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_ = buildStack2(pcs[:])
+		}
+	})
+	b.Run("escape-buildStack", func(b *testing.B) {
+		pcs := [DefaultDepth]uintptr{}
+		b.ReportAllocs()
+		for i := 0; i < b.N; i++ {
+			_ = buildStack(pcs[:])
+		}
+	})
 	b.Run("escape", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {
 			pcs := [DefaultDepth]uintptr{}
-			_ = buildStack(pcs[:])
-		}
-	})
-	b.Run("escape-0", func(b *testing.B) {
-		pcs := [DefaultDepth]uintptr{}
-		b.ReportAllocs()
-		for i := 0; i < b.N; i++ {
 			_ = buildStack(pcs[:])
 		}
 	})

@@ -46,9 +46,9 @@ loop:
     CMPQ    8(BP), R13     // // parent 是否相等；不相等则直接返回
     JE    gotojmp
 
-	MOVQ	+0(BP), BP 		// last BP; 展开调用栈至上一层
-	CMPQ	BP, $0 			// if (BP) <= 0 { return }
-	JA loop					// 无符号大于就跳转
+    MOVQ    +0(BP), BP         // last BP; 展开调用栈至上一层
+    CMPQ    BP, $0             // if (BP) <= 0 { return }
+    JA loop                    // 无符号大于就跳转
     MOVQ    BX, BP  // load BP
     RET                     // 找不到，则不处理
 

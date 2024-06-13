@@ -181,6 +181,20 @@ func BenchmarkSetJMP1(b *testing.B) {
 		}
 		b.StopTimer()
 	})
+	b.Run("jmp.TryLong(err)", func(b *testing.B) {
+		b.ReportAllocs()
+		pc, err1 := jmp.Set()
+		for i := 0; i < b.N; i++ {
+			if i == 0 {
+				pc, err1 = jmp.Set()
+				if err1 != nil {
+					continue
+				}
+			}
+			jmp.TryLong(pc, err)
+		}
+		b.StopTimer()
+	})
 	b.Run("jmp.Set()", func(b *testing.B) {
 		b.ReportAllocs()
 		for i := 0; i < b.N; i++ {

@@ -37,3 +37,6 @@ func GetPC() uintptr
 
 //go:noinline
 func buildStack(s []uintptr) int
+
+//go:noinline
+func buildStack2(s []uintptr) int

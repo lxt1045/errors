@@ -49,12 +49,13 @@ TEXT ·GetPC(SB),NOSPLIT,$0-8
 	RET
 
 // func buildStack(s []uintptr) int
-TEXT ·buildStack(SB), NOSPLIT, $24-8
+TEXT ·buildStack2(SB), NOSPLIT, $24-8
 	NO_LOCAL_POINTERS
 	MOVQ 	cap+16(FP), DX 	// s.cap
 	MOVQ 	p+0(FP), AX		// s.ptr
 	MOVQ	$0, CX			// loop.i=0
 
+	MOVQ	BP, R13			// store BP
 	MOVQ	+0(BP), BP      // skip +1 // 和 GetPC() 不同，此函数有参数，需要入栈 BP，所以这里要跳过一层调用栈
 loop:
 	CMPQ	CX, DX			// if i >= s.cap { return }
@@ -72,35 +73,38 @@ loop:
 
 return:
 	MOVQ	CX,n+24(FP) 	// ret n
+	MOVQ	R13, BP			// load BP
 	RET
 
 
 
 // func buildStack(s []uintptr) int
-TEXT ·buildStack2(SB), NOSPLIT, $24-8
+TEXT ·buildStack(SB), NOSPLIT, $0-32
 	NO_LOCAL_POINTERS
 	MOVQ 	cap+16(FP), DX 	// s.cap
 	MOVQ 	p+0(FP), AX		// s.ptr
-	MOVQ	$0, CX			// loop.i
+	MOVQ	$0, CX			// loop.i=0
+	MOVQ	BP, R13			// store BP
 
-	CMPQ	DX, $1			// if s.cap<=0 { return }
-	JL	return				// 有符号大于等于就跳转
-	MOVQ	pc-8(FP),BX
-	MOVQ	BX, 0(AX)(CX*8)	
+	// MOVQ	+0(BP), BP      // skip +1 // 和 GetPC() 不同，此函数有参数，需要入栈 BP，所以这里要跳过一层调用栈
+	// CMPQ	BP, CX			// if i >= s.cap { return }
+	// JE	return				// 无符号大于等于就跳转
 loop:
-	ADDQ	$1, CX			// CX++ / i++
-	CMPQ	CX, DX			// if s.len >= s.cap { return }
+	CMPQ	CX, DX			// if i >= s.cap { return }
 	JAE	return				// 无符号大于等于就跳转
 
 	MOVQ	+8(BP), BX		// last pc -> BX
-	SUBQ	$1, BX
+	SUBQ	$1, BX          //  pc-1 才是真正的PC，但是 runtime.Callers 并没有这样做
 	MOVQ	BX, 0(AX)(CX*8)		// s[i] = BX
 	
+	ADDQ	$1, CX			// CX++ / i++
+
 	MOVQ	+0(BP), BP 		// last BP; 展开调用栈至上一层
 	CMPQ	BP, $0 			// if (BP) <= 0 { return }
 	JA loop					// 无符号大于就跳转
 
 return:
 	MOVQ	CX,n+24(FP) 	// ret n
+	MOVQ	R13, BP			// load BP
 	RET
 

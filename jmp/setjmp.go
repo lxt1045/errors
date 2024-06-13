@@ -38,7 +38,7 @@ func Try(pc PC, err error)
 type PC struct {
 	pc     uintptr //nolint:unused
 	sp     uintptr //nolint:unused
-	parent uintptr //nolint:unused
+	parent uintptr //nolint:unused   // caller's PC
 	_defer uintptr //nolint:unused
 
 	// noCopy noCopy //nolint:unused
