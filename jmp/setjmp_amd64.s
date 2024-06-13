@@ -20,57 +20,38 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//go:build (386 || amd64 || amd64p32 || arm || arm64) && gc && go1.5
+//go:build (386 || amd64 || amd64p32 || arm64) && gc && go1.5
 
 #include "go_asm.h"
 #include "textflag.h"
 #include "funcdata.h"
 
 
-// func Set() (PC, error)
-TEXT ·Set(SB),NOSPLIT,$0-48
-    NO_LOCAL_POINTERS
-    // MOVQ    $0, ret+0(FP)  // 返回值清零, pc
-    // MOVQ    $0, ret+8(FP)  // 返回值清零, pc
-    // MOVQ    $0, ret+16(FP)  // parent
-    // MOVQ    $0, ret+24(FP) // _defer
-    MOVQ    $0, ret+32(FP) // err
-    MOVQ    $0, ret+40(FP) // err
-    GO_RESULTS_INITIALIZED
-    MOVQ    pc-8(FP), R13  // pc
-    MOVQ    R13, ret+0(FP)
-    MOVQ    BP, AX
-    SUBQ    SP, AX
-    MOVQ    AX, ret+8(FP)   // 因为是拷贝栈，所以SP不能直接存，只能存SP和BP的差值！！！
-
-    // MOVQ    (BP), R14       // parent_pc
-    // MOVQ    +8(R14), R13
-    // 函数栈帧大小(本地变量占用空间大小)为0时，BP未入栈
-    MOVQ    8(BP), R13       // parent_pc
-    MOVQ    R13, parent+16(FP)
-
-    MOVQ (TLS), AX    // runtime.g
-    ADDQ ·defer_offset(SB),AX
-    MOVQ (AX), BX
-    MOVQ BX, _defer+24(FP)
-
-    RET
-
-
-// func Try(pc PC, err error)
-TEXT ·Try(SB),NOSPLIT, $0-48
+// func TryJmp(pc PC, err error)
+TEXT ·TryLong(SB),NOSPLIT, $0-48
     NO_LOCAL_POINTERS
     GO_RESULTS_INITIALIZED
 
-    MOVQ    8(BP), R13     // get parent    
-    
-    CMPQ    pc+16(FP), R13  // parent 是否相等；不相等则直接返回
-    JE    checkerr
-    RET
-checkerr:
+    // checkerr:
     CMPQ    err+32(FP), $0 // err.data==nil ;type eface struct { _type *_type; data  unsafe.Pointer }
-    JHI    gotojmp
+    JHI    checkparent
     RET
+
+
+// 需要找到 Set() 函数调用的那个函数。
+checkparent:
+    MOVQ    pc+16(FP), R13  // get parent 
+    MOVQ    BP, BX  // store BP
+loop:
+    CMPQ    8(BP), R13     // // parent 是否相等；不相等则直接返回
+    JE    gotojmp
+
+	MOVQ	+0(BP), BP 		// last BP; 展开调用栈至上一层
+	CMPQ	BP, $0 			// if (BP) <= 0 { return }
+	JA loop					// 无符号大于就跳转
+    MOVQ    BX, BP  // load BP
+    RET                     // 找不到，则不处理
+
 gotojmp:
     MOVQ    pc+0(FP), CX // jmp.pc
     MOVQ    pc+8(FP), R15 // jmp.sp
@@ -80,7 +61,6 @@ gotojmp:
     MOVQ    pc+24(FP), DX // jmp._defer
     MOVQ    pc+32(FP), AX // err.type
     MOVQ    pc+40(FP), R14 // err.data
-
 
     MOVQ    BX, SP  // 恢复 SP 物理寄存器
     MOVQ    CX, retaddr-8(FP)  // 恢复 ret addr
