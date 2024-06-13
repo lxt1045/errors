@@ -111,6 +111,8 @@ func TestSet(t *testing.T) {
 				err3 := fmt.Errorf("error 3")
 				Try(pc, nil)
 				t.Log("4")
+				TryLong(pc, nil)
+				t.Log("4.1")
 				// TryLong(pc, err3)
 				func() {
 					func() {
@@ -121,6 +123,7 @@ func TestSet(t *testing.T) {
 						TryLong(pc, err4)
 					}()
 				}()
+				t.Log("6.0")
 				TryLong(pc, err3)
 				t.Log("6")
 				Try(pc, err3)
