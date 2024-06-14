@@ -20,22 +20,28 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//go:build (386 || amd64 || amd64p32 || arm || arm64) && gc && go1.5
-
-package jmp
-
-import "reflect"
-
-// Defined in goid_go1.5.s.
-func getg() *g
-
-func GetGoid() uint64 {
-	return getg().goid
-}
-
-var defer_offset uintptr = func() uintptr {
-	if f, ok := reflect.TypeOf(g{}).FieldByName("_defer"); ok {
-		return f.Offset
-	}
-	panic("can not find g.goid field")
-}()
+// 当前仅验证 AMD64 平台，其他平台待验证
+#ifdef GOARCH_386
+    #define  MOVEX MOVL
+    #define  SUBX SUBL
+    #define  ADDX ADDL
+    #define  CMPX CMPL
+#endif
+#ifdef GOARCH_amd64
+    #define  MOVEX MOVQ
+    #define  SUBX SUBQ
+    #define  ADDX ADDQ
+    #define  CMPX CMPQ
+#endif
+#ifdef GOARCH_arm
+    #define  MOVEX MOVW 
+    #define  SUBX SUB
+    #define  ADDX ADD
+    #define  CMPX CMP
+#endif
+#ifdef GOARCH_arm64
+    #define  MOVEX MOVD 
+    #define  SUBX SUB
+    #define  ADDX ADD
+    #define  CMPX CMP
+#endif

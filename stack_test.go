@@ -14,6 +14,11 @@ func Test_getPCSlow(t *testing.T) {
 		t.Logf("getPCSlow:%+v, getPC:%+v", pcs1, pcs2)
 		assert.Equal(t, pcs2, pcs1)
 	})
+	t.Run("getPCSlow0", func(t *testing.T) {
+		pcs2, pcs1 := fPC0()
+		t.Logf("getPCSlow:%+v, getPC:%+v", pcs1, pcs2)
+		assert.Equal(t, pcs2, pcs1)
+	})
 
 	t.Run("GetPCSlow", func(t *testing.T) {
 		pcs1, pcs2 := fPC2()
@@ -50,6 +55,9 @@ func Test_getPCSlow(t *testing.T) {
 //go:noinline
 func fPC() ([1]uintptr, [1]uintptr) {
 	return getPC(), getPCSlow()
+}
+func fPC0() ([1]uintptr, [1]uintptr) {
+	return getPCSlow(), getPC()
 }
 
 //go:noinline

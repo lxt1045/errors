@@ -26,6 +26,7 @@
 #include "go_asm.h"
 #include "textflag.h"
 #include "funcdata.h"
+#include "jmp/define.h"  // replace MOVEX --> MOVEX
 
 
 // func getPC() [1]uintptr
@@ -33,47 +34,47 @@ TEXT ·getPC(SB),NOSPLIT,$0-8
 	NO_LOCAL_POINTERS
 
 	// 返回上一层调用栈的 pc; 由于getPC栈帧为0，所以没有压入BP，这里就少一层BP
-	// 理论上，不压入BP的平台(非arm64、X64)也可以如此获取，就是要改成 "MOVQ	+0(BP), AX"，因为有BP才需要+8
-	MOVQ	+8(BP), AX		
-	SUBQ	$1, AX          // pc-1 才是真正的PC，但是 runtime.Callers 并没有这样做，为了一致性，这里先注释了
-	MOVQ	AX, ret+0(FP)
+	// 理论上，不压入BP的平台(非arm64、X64)也可以如此获取，就是要改成 "MOVEX	+0(BP), AX"，因为有BP才需要+8
+	MOVEX	+8(BP), AX		
+	// SUBX	$1, AX          // pc-1 才是真正的PC，但是 runtime.Callers 并没有这样做，为了一致性，这里先注释了
+	MOVEX	AX, ret+0(FP)
 	RET
 
 
 // func GetPC() uintptr
 TEXT ·GetPC(SB),NOSPLIT,$0-8
 	NO_LOCAL_POINTERS
-	MOVQ	+8(BP), AX		// 返回上一层调用栈的 pc
-	SUBQ	$1, AX
-	MOVQ	AX, ret+0(FP)
+	MOVEX	+8(BP), AX		// 返回上一层调用栈的 pc
+	// SUBX	$1, AX
+	MOVEX	AX, ret+0(FP)
 	RET
 
 // func buildStack(s []uintptr) int
 TEXT ·buildStack2(SB), NOSPLIT, $24-8
 	NO_LOCAL_POINTERS
-	MOVQ 	cap+16(FP), DX 	// s.cap
-	MOVQ 	p+0(FP), AX		// s.ptr
-	MOVQ	$0, CX			// loop.i=0
+	MOVEX 	cap+16(FP), DX 	// s.cap
+	MOVEX 	p+0(FP), AX		// s.ptr
+	MOVEX	$0, CX			// loop.i=0
 
-	MOVQ	BP, R13			// store BP
-	MOVQ	+0(BP), BP      // skip +1 // 和 GetPC() 不同，此函数有参数，需要入栈 BP，所以这里要跳过一层调用栈
+	MOVEX	BP, R13			// store BP
+	MOVEX	+0(BP), BP      // skip +1 // 和 GetPC() 不同，此函数有参数，需要入栈 BP，所以这里要跳过一层调用栈
 loop:
-	CMPQ	CX, DX			// if i >= s.cap { return }
+	CMPX	CX, DX			// if i >= s.cap { return }
 	JAE	return				// 无符号大于等于就跳转
 
-	MOVQ	+8(BP), BX		// last pc -> BX
-	SUBQ	$1, BX          //  pc-1 才是真正的PC，但是 runtime.Callers 并没有这样做
-	MOVQ	BX, 0(AX)(CX*8)		// s[i] = BX
+	MOVEX	+8(BP), BX		// last pc -> BX
+	// SUBX	$1, BX          //  pc-1 才是真正的PC，但是 runtime.Callers 并没有这样做
+	MOVEX	BX, 0(AX)(CX*8)		// s[i] = BX
 	
-	ADDQ	$1, CX			// CX++ / i++
+	ADDX	$1, CX			// CX++ / i++
 
-	MOVQ	+0(BP), BP 		// last BP; 展开调用栈至上一层
-	CMPQ	BP, $0 			// if (BP) <= 0 { return }
+	MOVEX	+0(BP), BP 		// last BP; 展开调用栈至上一层
+	CMPX	BP, $0 			// if (BP) <= 0 { return }
 	JA loop					// 无符号大于就跳转
 
 return:
-	MOVQ	CX,n+24(FP) 	// ret n
-	MOVQ	R13, BP			// load BP
+	MOVEX	CX,n+24(FP) 	// ret n
+	MOVEX	R13, BP			// load BP
 	RET
 
 
@@ -81,30 +82,30 @@ return:
 // func buildStack(s []uintptr) int
 TEXT ·buildStack(SB), NOSPLIT, $0-32
 	NO_LOCAL_POINTERS
-	MOVQ 	cap+16(FP), DX 	// s.cap
-	MOVQ 	p+0(FP), AX		// s.ptr
-	MOVQ	$0, CX			// loop.i=0
-	MOVQ	BP, R13			// store BP
+	MOVEX 	cap+16(FP), DX 	// s.cap
+	MOVEX 	p+0(FP), AX		// s.ptr
+	MOVEX	$0, CX			// loop.i=0
+	MOVEX	BP, R13			// store BP
 
-	// MOVQ	+0(BP), BP      // skip +1 // 和 GetPC() 不同，此函数有参数，需要入栈 BP，所以这里要跳过一层调用栈
-	// CMPQ	BP, CX			// if i >= s.cap { return }
+	// MOVEX	+0(BP), BP      // skip +1 // 和 GetPC() 不同，此函数有参数，需要入栈 BP，所以这里要跳过一层调用栈
+	// CMPX	BP, CX			// if i >= s.cap { return }
 	// JE	return				// 无符号大于等于就跳转
 loop:
-	CMPQ	CX, DX			// if i >= s.cap { return }
+	CMPX	CX, DX			// if i >= s.cap { return }
 	JAE	return				// 无符号大于等于就跳转
 
-	MOVQ	+8(BP), BX		// last pc -> BX
-	SUBQ	$1, BX          //  pc-1 才是真正的PC，但是 runtime.Callers 并没有这样做
-	MOVQ	BX, 0(AX)(CX*8)		// s[i] = BX
+	MOVEX	+8(BP), BX		// last pc -> BX
+	// SUBX	$1, BX          //  pc-1 才是真正的PC，但是 runtime.Callers 并没有这样做
+	MOVEX	BX, 0(AX)(CX*8)		// s[i] = BX
 	
-	ADDQ	$1, CX			// CX++ / i++
+	ADDX	$1, CX			// CX++ / i++
 
-	MOVQ	+0(BP), BP 		// last BP; 展开调用栈至上一层
-	CMPQ	BP, $0 			// if (BP) <= 0 { return }
+	MOVEX	+0(BP), BP 		// last BP; 展开调用栈至上一层
+	CMPX	BP, $0 			// if (BP) <= 0 { return }
 	JA loop					// 无符号大于就跳转
 
 return:
-	MOVQ	CX,n+24(FP) 	// ret n
-	MOVQ	R13, BP			// load BP
+	MOVEX	CX,n+24(FP) 	// ret n
+	MOVEX	R13, BP			// load BP
 	RET
 
