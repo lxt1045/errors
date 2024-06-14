@@ -33,10 +33,16 @@ import (
 func getPC() [1]uintptr
 
 //go:noinline
-func GetPC() uintptr
+func GetPC() PC
 
 //go:noinline
 func buildStack(s []uintptr) int
 
 //go:noinline
 func buildStack2(s []uintptr) int
+
+type PC uintptr
+
+func (p PC) CallerFrame() (c *caller) {
+	return CallerFrame(uintptr(p))
+}

@@ -79,11 +79,11 @@ func toLogger(logger *logrus.Logger) *Logger {
 func New() *Logger {
 	return toLogger(logrus.New())
 }
-func (logger *Logger) AddCaller(pc uintptr) *Entry {
-	c := CallerFrame(pc)
+func (logger *Logger) AddCaller(pc errors.PC) *Entry {
+	c := pc.CallerFrame()
 	return logger.WithFields(logrus.Fields{
 		logrus.FieldKeyFunc: c.Func,
-		logrus.FieldKeyFile: c.File,
+		logrus.FieldKeyFile: c.FileLine,
 	})
 }
 
@@ -117,7 +117,7 @@ func (logger *Logger) Logf(level logrus.Level, format string, args ...interface{
 	logger.logf(level, errors.GetPC(), format, args...)
 }
 
-func (logger *Logger) logf(level logrus.Level, pc uintptr, format string, args ...interface{}) {
+func (logger *Logger) logf(level logrus.Level, pc errors.PC, format string, args ...interface{}) {
 	if logger.IsLevelEnabled(level) {
 		entry := logger.AddCaller(pc)
 		entry.Logf(level, format, args...)
@@ -168,7 +168,7 @@ func (logger *Logger) Panicf(format string, args ...interface{}) {
 func (logger *Logger) Log(level logrus.Level, args ...interface{}) {
 	logger.log(level, errors.GetPC(), args...)
 }
-func (logger *Logger) log(level logrus.Level, pc uintptr, args ...interface{}) {
+func (logger *Logger) log(level logrus.Level, pc errors.PC, args ...interface{}) {
 	if logger.IsLevelEnabled(level) {
 		entry := logger.AddCaller(pc)
 		entry.Log(level, args...)
@@ -258,7 +258,7 @@ func (logger *Logger) PanicFn(fn logrus.LogFunction) {
 func (logger *Logger) Logln(level logrus.Level, args ...interface{}) {
 	logger.logln(level, errors.GetPC(), args...)
 }
-func (logger *Logger) logln(level logrus.Level, pc uintptr, args ...interface{}) {
+func (logger *Logger) logln(level logrus.Level, pc errors.PC, args ...interface{}) {
 	if logger.IsLevelEnabled(level) {
 		entry := logger.AddCaller(pc)
 		entry.Logln(level, args...)

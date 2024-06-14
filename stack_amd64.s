@@ -26,7 +26,7 @@
 #include "go_asm.h"
 #include "textflag.h"
 #include "funcdata.h"
-#include "jmp/define.h"  // replace MOVEX --> MOVEX
+#include "jmp/define.h"  // replace MOVQ --> MOVEX
 
 
 // func getPC() [1]uintptr

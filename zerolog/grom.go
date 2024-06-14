@@ -112,7 +112,7 @@ func (l GormLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 			lasti = i
 		} else if strings.HasPrefix(c.Func, "gen.(*DO).") {
 			lasti = i
-		} else if strings.HasSuffix(c.File, ".gen.go") {
+		} else if strings.Contains(c.FileLine, ".gen.go:") { //strings.HasSuffix(c.File, ".gen.go") {
 			lasti = i
 		}
 	}
@@ -120,7 +120,7 @@ func (l GormLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 	if eventError || eventWarn {
 		strs := make([]string, 0, len(cs))
 		for _, c := range cs {
-			strs = append(strs, zerolog.CallerMarshalFunc(0, c.File, c.Line))
+			strs = append(strs, c.FileLine) //zerolog.CallerMarshalFunc(0, c.File, c.Line))
 		}
 		event = event.Strs(
 			zerolog.ErrorStackFieldName,
@@ -129,7 +129,7 @@ func (l GormLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 	} else {
 		event = event.Str(
 			zerolog.CallerFieldName,
-			zerolog.CallerMarshalFunc(0, cs[0].File, cs[0].Line),
+			cs[0].FileLine, //zerolog.CallerMarshalFunc(0, cs[0].File, cs[0].Line),
 		)
 	}
 
@@ -218,7 +218,7 @@ func (l GormEvent) Trace(ctx context.Context, begin time.Time, fc func() (string
 	cs := errors.CallersSkip(skip)
 	lasti := 0
 	for i, c := range cs {
-		if strings.HasPrefix(c.File, gormSourceDir) {
+		if strings.HasPrefix(c.FileLine, gormSourceDir) {
 			lasti = i
 		}
 	}
@@ -226,7 +226,7 @@ func (l GormEvent) Trace(ctx context.Context, begin time.Time, fc func() (string
 	if eventError || eventWarn {
 		strs := make([]string, 0, len(cs))
 		for _, c := range cs {
-			strs = append(strs, zerolog.CallerMarshalFunc(0, c.File, c.Line))
+			strs = append(strs, c.FileLine) //zerolog.CallerMarshalFunc(0, c.File, c.Line))
 		}
 		event = event.Strs(
 			zerolog.ErrorStackFieldName,
@@ -235,7 +235,7 @@ func (l GormEvent) Trace(ctx context.Context, begin time.Time, fc func() (string
 	} else {
 		event = event.Str(
 			zerolog.CallerFieldName,
-			zerolog.CallerMarshalFunc(0, cs[0].File, cs[0].Line),
+			cs[0].FileLine, //zerolog.CallerMarshalFunc(0, cs[0].File, cs[0].Line),
 		)
 
 		// "gorm.io/gorm/utils"

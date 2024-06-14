@@ -105,9 +105,9 @@ func (s *SugaredLogger) Debug(args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.DebugLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getArgs(args)
-	s.getLogger().Logger.Debug(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Debug(msg, zap.String("caller", c.FileLine))
 }
 
 // Info logs the provided arguments at [InfoLevel].
@@ -116,9 +116,9 @@ func (s *SugaredLogger) Info(args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.InfoLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getArgs(args)
-	s.getLogger().Logger.Info(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Info(msg, zap.String("caller", c.FileLine))
 }
 
 // Warn logs the provided arguments at [WarnLevel].
@@ -127,116 +127,116 @@ func (s *SugaredLogger) Warn(args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.WarnLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getArgs(args)
-	s.getLogger().Logger.Warn(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Warn(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) Error(args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.ErrorLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getArgs(args)
-	s.getLogger().Logger.Error(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Error(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) DPanic(args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.DPanicLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getArgs(args)
-	s.getLogger().Logger.DPanic(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.DPanic(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) Panic(args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.PanicLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getArgs(args)
-	s.getLogger().Logger.Panic(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Panic(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) Fatal(args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.FatalLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getArgs(args)
-	s.getLogger().Logger.Fatal(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Fatal(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) Debugf(template string, args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.DebugLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getTemplateArgs(template, args)
-	s.getLogger().Logger.Debug(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Debug(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) Infof(template string, args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.InfoLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getTemplateArgs(template, args)
-	s.getLogger().Logger.Info(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Info(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) Warnf(template string, args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.WarnLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getTemplateArgs(template, args)
-	s.getLogger().Logger.Warn(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Warn(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) Errorf(template string, args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.ErrorLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getTemplateArgs(template, args)
-	s.getLogger().Logger.Error(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Error(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) DPanicf(template string, args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.DPanicLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getTemplateArgs(template, args)
-	s.getLogger().Logger.DPanic(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.DPanic(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) Panicf(template string, args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.PanicLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getTemplateArgs(template, args)
-	s.getLogger().Logger.Panic(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Panic(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) Fatalf(template string, args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.FatalLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getTemplateArgs(template, args)
-	s.getLogger().Logger.Fatal(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Fatal(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) Debugw(msg string, keysAndValues ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.DebugLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
-	keysAndValues = append(keysAndValues, zap.String("caller", c.File))
+	c := errors.GetPC().CallerFrame()
+	keysAndValues = append(keysAndValues, zap.String("caller", c.FileLine))
 	s.SugaredLogger.Debugw(msg, keysAndValues)
 }
 
@@ -244,8 +244,8 @@ func (s *SugaredLogger) Infow(msg string, keysAndValues ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.InfoLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
-	keysAndValues = append(keysAndValues, zap.String("caller", c.File))
+	c := errors.GetPC().CallerFrame()
+	keysAndValues = append(keysAndValues, zap.String("caller", c.FileLine))
 	s.SugaredLogger.Infow(msg, keysAndValues)
 }
 
@@ -253,8 +253,8 @@ func (s *SugaredLogger) Warnw(msg string, keysAndValues ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.WarnLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
-	keysAndValues = append(keysAndValues, zap.String("caller", c.File))
+	c := errors.GetPC().CallerFrame()
+	keysAndValues = append(keysAndValues, zap.String("caller", c.FileLine))
 	s.SugaredLogger.Warnw(msg, keysAndValues)
 }
 
@@ -262,8 +262,8 @@ func (s *SugaredLogger) Errorw(msg string, keysAndValues ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.ErrorLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
-	keysAndValues = append(keysAndValues, zap.String("caller", c.File))
+	c := errors.GetPC().CallerFrame()
+	keysAndValues = append(keysAndValues, zap.String("caller", c.FileLine))
 	s.SugaredLogger.Errorw(msg, keysAndValues)
 }
 
@@ -271,8 +271,8 @@ func (s *SugaredLogger) DPanicw(msg string, keysAndValues ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.DPanicLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
-	keysAndValues = append(keysAndValues, zap.String("caller", c.File))
+	c := errors.GetPC().CallerFrame()
+	keysAndValues = append(keysAndValues, zap.String("caller", c.FileLine))
 	s.SugaredLogger.DPanicw(msg, keysAndValues)
 }
 
@@ -280,8 +280,8 @@ func (s *SugaredLogger) Panicw(msg string, keysAndValues ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.PanicLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
-	keysAndValues = append(keysAndValues, zap.String("caller", c.File))
+	c := errors.GetPC().CallerFrame()
+	keysAndValues = append(keysAndValues, zap.String("caller", c.FileLine))
 	s.SugaredLogger.Panicw(msg, keysAndValues)
 }
 
@@ -289,8 +289,8 @@ func (s *SugaredLogger) Fatalw(msg string, keysAndValues ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.FatalLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
-	keysAndValues = append(keysAndValues, zap.String("caller", c.File))
+	c := errors.GetPC().CallerFrame()
+	keysAndValues = append(keysAndValues, zap.String("caller", c.FileLine))
 	s.SugaredLogger.Fatalw(msg, keysAndValues)
 }
 
@@ -298,61 +298,61 @@ func (s *SugaredLogger) Debugln(args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.DebugLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getArgsLn(args)
-	s.getLogger().Logger.Debug(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Debug(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) Infoln(args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.InfoLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getArgsLn(args)
-	s.getLogger().Logger.Info(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Info(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) Warnln(args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.WarnLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getArgsLn(args)
-	s.getLogger().Logger.Warn(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Warn(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) Errorln(args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.ErrorLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getArgsLn(args)
-	s.getLogger().Logger.Error(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Error(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) DPanicln(args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.DPanicLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getArgsLn(args)
-	s.getLogger().Logger.DPanic(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.DPanic(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) Panicln(args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.PanicLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getArgsLn(args)
-	s.getLogger().Logger.Panic(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Panic(msg, zap.String("caller", c.FileLine))
 }
 
 func (s *SugaredLogger) Fatalln(args ...interface{}) {
 	if !s.getLogger().getZapCore().Enabled(zap.FatalLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
+	c := errors.GetPC().CallerFrame()
 	msg := getArgsLn(args)
-	s.getLogger().Logger.Fatal(msg, zap.String("caller", c.File))
+	s.getLogger().Logger.Fatal(msg, zap.String("caller", c.FileLine))
 }

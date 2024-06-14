@@ -38,6 +38,14 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
+func deepCall(depth int, f func()) {
+	if depth <= 0 {
+		f()
+		return
+	}
+	deepCall(depth-1, f)
+}
+
 func TestClone(t *testing.T) {
 	t.Run("Clone", func(t *testing.T) {
 		pcs := [DefaultDepth]uintptr{}

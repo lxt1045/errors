@@ -137,6 +137,46 @@ func TestSet(t *testing.T) {
 
 func BenchmarkSetJMP1(b *testing.B) {
 	err := fmt.Errorf("error 0")
+	err3 := fmt.Errorf("error 3")
+
+	b.Run("defer&panic", func(b *testing.B) {
+		b.ReportAllocs()
+		var err error
+		_ = err
+		for i := 0; i < b.N; i++ {
+			func() {
+				defer func() {
+					e := recover()
+					if e != nil {
+						err = e.(error)
+						return
+					}
+				}()
+				if err3 != nil {
+					panic(err3)
+				}
+			}()
+		}
+		b.StopTimer()
+	})
+	b.Run("defer&panic-nil", func(b *testing.B) {
+		b.ReportAllocs()
+		var err error
+		_ = err
+		defer func() {
+			e := recover()
+			if e != nil {
+				err = e.(error)
+				return
+			}
+		}()
+		for i := 0; i < b.N; i++ {
+			if false {
+				panic(err3)
+			}
+		}
+		b.StopTimer()
+	})
 
 	b.Run("jmp.Try(nil)", func(b *testing.B) {
 		b.ReportAllocs()

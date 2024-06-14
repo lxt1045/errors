@@ -255,8 +255,8 @@ func BenchmarkLog(b *testing.B) {
 		b.ReportAllocs()
 		b.StartTimer()
 		for i := 0; i < b.N; i++ {
-			c := CallerFrame(errors.GetPC())
-			io.Discard.Write([]byte(zap.String("caller", c.File).String))
+			c := errors.GetPC().CallerFrame()
+			io.Discard.Write([]byte(zap.String("caller", c.FileLine).String))
 		}
 	})
 }

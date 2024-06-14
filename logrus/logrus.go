@@ -50,11 +50,11 @@ func NewEntry(logger *logrus.Logger) *Entry {
 	return toEntry(logrus.NewEntry(logger))
 }
 
-func (entry *Entry) AddCaller(pc uintptr) *logrus.Entry {
-	c := CallerFrame(pc)
+func (entry *Entry) AddCaller(pc errors.PC) *logrus.Entry {
+	c := pc.CallerFrame()
 	return toLogrusEntry(entry).WithFields(logrus.Fields{
 		logrus.FieldKeyFunc: c.Func,
-		logrus.FieldKeyFile: c.File,
+		logrus.FieldKeyFile: c.FileLine,
 	})
 }
 

@@ -140,9 +140,10 @@ func marshalText(size int, buf *writeBuffer, err error) {
 }
 
 type caller struct {
-	File string
-	Func string
-	Line int
+	FileLine string
+	Func     string
+	// File     string
+	// Line     int
 }
 
 func toCaller1(f runtime.Frame) caller { // nolint:gocritic
@@ -177,10 +178,15 @@ func toCaller1(f runtime.Frame) caller { // nolint:gocritic
 		}
 	}
 
+	var fileLine string
+	if file != "" {
+		fileLine = file + ":" + strconv.Itoa(line)
+	}
 	return caller{
-		File: file, // + ":" + strconv.Itoa(line),
-		Line: line,
-		Func: funcName,
+		FileLine: fileLine,
+		Func:     funcName,
+		// File:     fileLine[:len(file)], // 回收file，共用fileLine
+		// Line:     line,
 	}
 }
 
@@ -188,28 +194,36 @@ func toCaller(f runtime.Frame) caller { // nolint:gocritic
 	funcName, file, line := f.Function, f.File, f.Line
 
 	i := strings.LastIndexByte(funcName, os.PathSeparator)
-	if !samePathSeparator {
-		if i < 0 {
-			i = strings.LastIndexByte(funcName, '/')
-		}
+	if !samePathSeparator && i < 0 {
+		i = strings.LastIndexByte(funcName, '/')
 	}
 	if i >= 0 {
 		funcName = funcName[i+1:]
 	}
 	i = strings.LastIndex(file, pathSeparator)
-	if !samePathSeparator {
-		if i < 0 {
-			i = strings.LastIndexByte(file, '/')
-		}
+	if !samePathSeparator && i < 0 {
+		i = strings.LastIndexByte(file, '/')
 	}
 	if i >= 0 {
+		j := strings.LastIndex(file[:i], pathSeparator)
+		if !samePathSeparator && j < 0 {
+			j = strings.LastIndexByte(file[:i], '/')
+		}
+		if j > 0 {
+			i = j
+		}
 		file = file[i+1:]
 	}
 
+	var fileLine string
+	if file != "" {
+		fileLine = file + ":" + strconv.Itoa(line)
+	}
 	return caller{
-		File: file, // + ":" + strconv.Itoa(line),
-		Line: line,
-		Func: funcName,
+		FileLine: fileLine,
+		Func:     funcName,
+		// File:     fileLine[:len(file)], // 回收file，共用fileLine
+		// Line:     line,
 	}
 }
 
@@ -225,10 +239,10 @@ func toCallers(pcs []uintptr) (callers []caller) {
 }
 
 func (c caller) String() (s string) {
-	if c.File == "" || c.Func == "" {
+	if c.FileLine == "" && c.Func == "" {
 		return ""
 	}
-	return "(" + c.File + ":" + strconv.Itoa(c.Line) + ") " + c.Func
+	return "(" + c.FileLine + ") " + c.Func
 }
 
 func skipFile(f string) bool {

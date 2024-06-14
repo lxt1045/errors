@@ -547,7 +547,7 @@ func (ch callerHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
 	cs := errors.CallersSkip(ch.callerSkipFrameCount - 1)
 	e.Str(
 		zerolog.CallerFieldName,
-		zerolog.CallerMarshalFunc(0, cs[0].File, cs[0].Line),
+		cs[0].FileLine, //zerolog.CallerMarshalFunc(0, cs[0].File, cs[0].Line),
 	)
 }
 
@@ -930,10 +930,10 @@ func (e *Event) Caller(skip ...int) *Event {
 		levelSkip += skip[0]
 	}
 	if levelSkip <= 2 {
-		c := CallerFrame(errors.GetPC())
+		c := errors.GetPC().CallerFrame()
 		e = e.Str(
 			zerolog.CallerFieldName,
-			zerolog.CallerMarshalFunc(0, c.File, c.Line),
+			c.FileLine, // zerolog.CallerMarshalFunc(0, c.File, c.Line),
 		)
 		return e
 	}
@@ -941,7 +941,7 @@ func (e *Event) Caller(skip ...int) *Event {
 		cs := errors.CallersSkip(levelSkip - 2)
 		e = e.Str(
 			zerolog.CallerFieldName,
-			zerolog.CallerMarshalFunc(0, cs[0].File, cs[0].Line),
+			cs[0].FileLine, //zerolog.CallerMarshalFunc(0, cs[0].File, cs[0].Line),
 		)
 		return e
 	}
@@ -961,19 +961,4 @@ func (e *Event) IPPrefix(key string, pfx net.IPNet) *Event {
 // MACAddr adds MAC address to the event
 func (e *Event) MACAddr(key string, ha net.HardwareAddr) *Event {
 	return toEvent(toZeroEvent(e).MACAddr(key, ha))
-}
-
-func (e *Event) Msg(msg string) {
-	toZeroEvent(e).Msg(msg)
-}
-func (e *Event) Send() {
-	toZeroEvent(e).Send()
-}
-
-func (e *Event) Msgf(format string, v ...interface{}) {
-	toZeroEvent(e).Msgf(format, v...)
-}
-
-func (e *Event) MsgFunc(createMsg func() string) {
-	toZeroEvent(e).MsgFunc(createMsg)
 }

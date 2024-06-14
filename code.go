@@ -170,7 +170,7 @@ func parseSlow(pcs []uintptr) (cs []caller) {
 	for more {
 		f, more = traces.Next()
 		c := toCaller(f)
-		if skipFile(c.File) && len(cs) > 0 {
+		if skipFile(c.FileLine) && len(cs) > 0 {
 			break
 		}
 		cs = append(cs, c)

@@ -82,6 +82,18 @@ func TestLog(t *testing.T) {
 			Int("int", 3).
 			Msg("some log messages")
 	})
+
+	t.Run("lxt-zerolog-context-caller", func(t *testing.T) {
+		logger := New(os.Stdout)
+		log := logger.
+			With().
+			Caller().Logger()
+		log.Info().
+			Str("string", `some string format log information`).
+			Int("int", 3).
+			Send()
+	})
+
 	t.Run("zerolog-context-caller", func(t *testing.T) {
 		logger := zerolog.New(os.Stdout)
 		log := logger.
@@ -349,8 +361,8 @@ func BenchmarkLog(b *testing.B) {
 		b.ReportAllocs()
 		b.StartTimer()
 		for i := 0; i < b.N; i++ {
-			c := CallerFrame(errors.GetPC())
-			io.Discard.Write([]byte(zap.String("caller", c.File).String))
+			c := errors.GetPC().CallerFrame()
+			io.Discard.Write([]byte(zap.String("caller", c.FileLine).String))
 		}
 	})
 }

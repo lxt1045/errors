@@ -22,8 +22,8 @@ func LineByRuntime() string {
 }
 func LineByLog() string {
 	pc := errors.GetPC()
-	cf := CallerFrame(pc)
-	return cf.File // + ":" + strconv.Itoa(cf.Line)
+	cf := pc.CallerFrame()
+	return cf.FileLine
 }
 
 func TestSample(t *testing.T) {

@@ -56,8 +56,8 @@ func (log *Logger) Log(lvl zapcore.Level, msg string, fields ...zap.Field) {
 	if !log.getZapCore().Enabled(lvl) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
-	fields = append(fields, zap.String("caller", c.File))
+	c := errors.GetPC().CallerFrame()
+	fields = append(fields, zap.String("caller", c.FileLine))
 	log.Logger.Log(lvl, msg, fields...)
 }
 
@@ -65,8 +65,8 @@ func (log *Logger) Debug(msg string, fields ...zap.Field) {
 	if !log.getZapCore().Enabled(zap.DebugLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
-	fields = append(fields, zap.String("caller", c.File))
+	c := errors.GetPC().CallerFrame()
+	fields = append(fields, zap.String("caller", c.FileLine))
 	log.Logger.Debug(msg, fields...)
 }
 
@@ -74,8 +74,8 @@ func (log *Logger) Info(msg string, fields ...zap.Field) {
 	if !log.getZapCore().Enabled(zap.InfoLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
-	fields = append(fields, zap.String("caller", c.File))
+	c := errors.GetPC().CallerFrame()
+	fields = append(fields, zap.String("caller", c.FileLine))
 	log.Logger.Info(msg, fields...)
 }
 
@@ -83,8 +83,8 @@ func (log *Logger) Warn(msg string, fields ...zap.Field) {
 	if !log.getZapCore().Enabled(zap.WarnLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
-	fields = append(fields, zap.String("caller", c.File))
+	c := errors.GetPC().CallerFrame()
+	fields = append(fields, zap.String("caller", c.FileLine))
 	log.Logger.Warn(msg, fields...)
 }
 
@@ -92,8 +92,8 @@ func (log *Logger) Error(msg string, fields ...zap.Field) {
 	if !log.getZapCore().Enabled(zap.ErrorLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
-	fields = append(fields, zap.String("caller", c.File))
+	c := errors.GetPC().CallerFrame()
+	fields = append(fields, zap.String("caller", c.FileLine))
 	log.Logger.Error(msg, fields...)
 }
 
@@ -101,8 +101,8 @@ func (log *Logger) DPanic(msg string, fields ...zap.Field) {
 	if !log.getZapCore().Enabled(zap.DPanicLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
-	fields = append(fields, zap.String("caller", c.File))
+	c := errors.GetPC().CallerFrame()
+	fields = append(fields, zap.String("caller", c.FileLine))
 	log.Logger.DPanic(msg, fields...)
 }
 
@@ -110,8 +110,8 @@ func (log *Logger) Panic(msg string, fields ...zap.Field) {
 	if !log.getZapCore().Enabled(zap.PanicLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
-	fields = append(fields, zap.String("caller", c.File))
+	c := errors.GetPC().CallerFrame()
+	fields = append(fields, zap.String("caller", c.FileLine))
 	log.Logger.Panic(msg, fields...)
 }
 
@@ -119,7 +119,7 @@ func (log *Logger) Fatal(msg string, fields ...zap.Field) {
 	if !log.getZapCore().Enabled(zap.FatalLevel) {
 		return
 	}
-	c := CallerFrame(errors.GetPC())
-	fields = append(fields, zap.String("caller", c.File))
+	c := errors.GetPC().CallerFrame()
+	fields = append(fields, zap.String("caller", c.FileLine))
 	log.Logger.Fatal(msg, fields...)
 }

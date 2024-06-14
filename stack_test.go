@@ -27,7 +27,7 @@ func Test_getPCSlow(t *testing.T) {
 
 		c1 := CallerFrame(pcs1)
 		c2, _ := runtime.CallersFrames([]uintptr{pcs2}).Next()
-		t.Logf("GetPCSlow:%s:%d, GetPC:%s:%d", c1.File, c1.Line, c2.File, c2.Line)
+		t.Logf("GetPCSlow:%s, GetPC:%s:%d", c1.FileLine, c2.File, c2.Line)
 	})
 
 	t.Run("buildStack", func(t *testing.T) {
@@ -64,7 +64,7 @@ func fPC0() ([1]uintptr, [1]uintptr) {
 func fPC2() (uintptr, uintptr) {
 	var getPC2 func() [1]uintptr = getPCSlow
 	var GetPC2 func() uintptr = *(*func() uintptr)(unsafe.Pointer(&getPC2))
-	return GetPC2(), GetPC()
+	return GetPC2(), uintptr(GetPC())
 }
 
 //go:noinline
