@@ -28,6 +28,8 @@
 #include "funcdata.h"
 #include "jmp/define.h"  // replace MOVQ --> MOVEX
 
+// 还有一个采用struct指针进行栈回溯的方式：https://github.com/felixge/gounwind
+
 
 // func getPC() [1]uintptr
 TEXT ·getPC(SB),NOSPLIT,$0-8
