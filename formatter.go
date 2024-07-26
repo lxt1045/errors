@@ -142,8 +142,8 @@ func marshalText(size int, buf *writeBuffer, err error) {
 type caller struct {
 	FileLine string
 	Func     string
-	// File     string
-	// Line     int
+	File     string
+	Line     int
 }
 
 func toCaller1(f runtime.Frame) caller { // nolint:gocritic
@@ -185,8 +185,8 @@ func toCaller1(f runtime.Frame) caller { // nolint:gocritic
 	return caller{
 		FileLine: fileLine,
 		Func:     funcName,
-		// File:     fileLine[:len(file)], // 回收file，共用fileLine
-		// Line:     line,
+		File:     fileLine[:len(file)], // 回收file，共用fileLine
+		Line:     line,
 	}
 }
 
@@ -222,8 +222,8 @@ func toCaller(f runtime.Frame) caller { // nolint:gocritic
 	return caller{
 		FileLine: fileLine,
 		Func:     funcName,
-		// File:     fileLine[:len(file)], // 回收file，共用fileLine
-		// Line:     line,
+		File:     fileLine[:len(file)], // 回收file，共用fileLine
+		Line:     line,
 	}
 }
 
