@@ -24,6 +24,7 @@ package errors
 
 import (
 	"runtime"
+	"strings"
 	_ "unsafe" //nolint:bgolint
 
 	"github.com/rs/zerolog"
@@ -91,4 +92,63 @@ func (e zeroStack) MarshalZerologArray(a *zerolog.Array) {
 func ZerologStack(skip int) zeroStack {
 	cs := CallersSkip(skip + 1)
 	return zeroStack{stack: cs}
+}
+
+type zeroStackSkip struct {
+	stack []caller
+	skips []SkipFrame
+}
+
+func (e zeroStackSkip) MarshalZerologArray(a *zerolog.Array) {
+	for _, c := range e.stack {
+		for _, opt := range e.skips {
+			if opt(c.Func, c.File, c.Line) {
+				return
+			}
+		}
+		a.Str(c.String())
+	}
+}
+
+func ZerologStackWithOptions(skip int, skips ...SkipFrame) zeroStackSkip {
+	cs := CallersSkip(skip + 1)
+	return zeroStackSkip{stack: cs, skips: skips}
+}
+
+type SkipFrame func(Func string, File string, Line int) bool
+
+func SkipFuncPrefix(pre string) SkipFrame {
+	return func(Func string, File string, Line int) bool {
+		return strings.HasPrefix(Func, pre)
+	}
+}
+
+func SkipFilePrefix(pre string) SkipFrame {
+	return func(Func string, File string, Line int) bool {
+		return strings.HasPrefix(File, pre)
+	}
+}
+
+func SkipFuncSuffix(pre string) SkipFrame {
+	return func(Func string, File string, Line int) bool {
+		return strings.HasSuffix(Func, pre)
+	}
+}
+
+func SkipFileSuffix(pre string) SkipFrame {
+	return func(Func string, File string, Line int) bool {
+		return strings.HasSuffix(File, pre)
+	}
+}
+
+func SkipFuncContains(pre string) SkipFrame {
+	return func(Func string, File string, Line int) bool {
+		return strings.Contains(Func, pre)
+	}
+}
+
+func SkipFileContains(pre string) SkipFrame {
+	return func(Func string, File string, Line int) bool {
+		return strings.Contains(File, pre)
+	}
 }
