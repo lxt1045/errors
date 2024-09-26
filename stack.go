@@ -110,7 +110,7 @@ func (e zeroStackSkip) MarshalZerologArray(a *zerolog.Array) {
 	}
 }
 
-func ZerologStackWithOptions(skip int, skips ...SkipFrame) zeroStackSkip {
+func ZerologStackWithSkips(skip int, skips ...SkipFrame) zeroStackSkip {
 	cs := CallersSkip(skip + 1)
 	return zeroStackSkip{stack: cs, skips: skips}
 }
