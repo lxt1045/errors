@@ -183,32 +183,32 @@ func (l Logger) Hook(h zerolog.Hook) Logger {
 //
 // You must call Msg on the returned event in order to send the event.
 func (l *Logger) Trace() *Event {
-	return toEvent(l.Logger.Trace())
+	return toEvent(l.Logger.Trace().Timestamp())
 }
 
 // Debug starts a new message with debug level.
 //
 // You must call Msg on the returned event in order to send the event.
 func (l *Logger) Debug() *Event {
-	return toEvent(l.Logger.Debug())
+	return toEvent(l.Logger.Debug().Timestamp())
 }
 
 // Info starts a new message with info level.
 //
 // You must call Msg on the returned event in order to send the event.
 func (l *Logger) Info() *Event {
-	return toEvent(l.Logger.Info())
+	return toEvent(l.Logger.Info().Timestamp())
 }
 
 // Warn starts a new message with warn level.
 //
 // You must call Msg on the returned event in order to send the event.
 func (l *Logger) Warn() *Event {
-	return toEvent(l.Logger.Warn())
+	return toEvent(l.Logger.Warn().Timestamp())
 }
 
 func (l *Logger) Error() *Event {
-	return toEvent(l.Logger.Error())
+	return toEvent(l.Logger.Error().Timestamp())
 }
 
 func (l *Logger) Err(err error) *Event {

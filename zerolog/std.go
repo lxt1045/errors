@@ -115,7 +115,8 @@ func (l *stdLogger) Println(args ...interface{}) {
 func (e *Event) print(pc errors.PC, args ...interface{}) {
 	if e.Enabled() {
 		// e.CallerSkipFrame(1).Msg(fmt.Sprint(args...))
-		e = e.Timestamp().Str(
+		// e = e.Timestamp().Str(
+		e = e.Str(
 			zerolog.CallerFieldName,
 			pc.CallerFrame().FileLine,
 		)
@@ -124,8 +125,9 @@ func (e *Event) print(pc errors.PC, args ...interface{}) {
 }
 
 func (e *Event) printf(pc errors.PC, format string, args ...interface{}) {
-	if e.Timestamp().Enabled() {
+	if e.Enabled() {
 		// e.CallerSkipFrame(1).Msg(fmt.Sprint(args...))
+		// e = e.Timestamp().Str(
 		e = e.Str(
 			zerolog.CallerFieldName,
 			pc.CallerFrame().FileLine,
