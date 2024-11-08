@@ -72,6 +72,15 @@ func (l *stdLogger) Infof(format string, args ...interface{}) {
 func (l *stdLogger) Infoln(args ...interface{}) {
 	l.Logger.Info().print(errors.GetPC(), args...)
 }
+func (l *stdLogger) Warn(args ...interface{}) {
+	l.Logger.Warn().print(errors.GetPC(), args...)
+}
+func (l *stdLogger) Warnf(format string, args ...interface{}) {
+	l.Logger.Warn().printf(errors.GetPC(), format, args...)
+}
+func (l *stdLogger) Warnln(args ...interface{}) {
+	l.Logger.Warn().print(errors.GetPC(), args...)
+}
 
 func (l *stdLogger) Fatal(args ...interface{}) {
 	l.Logger.Fatal().print(errors.GetPC(), args...)
@@ -184,4 +193,13 @@ func Printf(format string, args ...interface{}) {
 }
 func Println(args ...interface{}) {
 	StdLogger.Info().print(errors.GetPC(), args...)
+}
+func Warn(args ...interface{}) {
+	StdLogger.Warn().print(errors.GetPC(), args...)
+}
+func Warnf(format string, args ...interface{}) {
+	StdLogger.Warn().printf(errors.GetPC(), format, args...)
+}
+func Warnln(args ...interface{}) {
+	StdLogger.Warn().print(errors.GetPC(), args...)
 }
