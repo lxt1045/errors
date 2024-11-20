@@ -962,3 +962,16 @@ func (e *Event) IPPrefix(key string, pfx net.IPNet) *Event {
 func (e *Event) MACAddr(key string, ha net.HardwareAddr) *Event {
 	return toEvent(toZeroEvent(e).MACAddr(key, ha))
 }
+
+// MACAddr adds MAC address to the event
+func (e *Event) Send() {
+	toZeroEvent(e).Send()
+}
+
+func (e *Event) Msg(msg string) {
+	toZeroEvent(e).Msg(msg)
+}
+
+func (e *Event) Msgf(format string, v ...interface{}) {
+	toZeroEvent(e).Msgf(format, v...)
+}
