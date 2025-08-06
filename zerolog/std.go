@@ -31,9 +31,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type stdLogger struct {
-	Logger
-}
+type stdLogger Logger
 
 func ToStd(logger *Logger) *stdLogger {
 	return (*stdLogger)(unsafe.Pointer(logger))
@@ -46,74 +44,74 @@ func (logger Logger) ToStd() stdLogger {
 }
 
 func (l *stdLogger) Debug(args ...interface{}) {
-	l.Logger.Debug().print(errors.GetPC(), args...)
+	(*Logger)(l).Debug().print(errors.GetPC(), args...)
 }
 func (l *stdLogger) Debugf(format string, args ...interface{}) {
-	l.Logger.Debug().printf(errors.GetPC(), format, args...)
+	(*Logger)(l).Debug().printf(errors.GetPC(), format, args...)
 }
 func (l *stdLogger) Debugln(args ...interface{}) {
-	l.Logger.Debug().print(errors.GetPC(), args...)
+	(*Logger)(l).Debug().print(errors.GetPC(), args...)
 }
 func (l *stdLogger) Error(args ...interface{}) {
-	l.Logger.Error().print(errors.GetPC(), args...)
+	(*Logger)(l).Error().print(errors.GetPC(), args...)
 }
 func (l *stdLogger) Errorf(format string, args ...interface{}) {
-	l.Logger.Error().printf(errors.GetPC(), format, args...)
+	(*Logger)(l).Error().printf(errors.GetPC(), format, args...)
 }
 func (l *stdLogger) Errorln(args ...interface{}) {
-	l.Logger.Error().print(errors.GetPC(), args...)
+	(*Logger)(l).Error().print(errors.GetPC(), args...)
 }
 func (l *stdLogger) Info(args ...interface{}) {
-	l.Logger.Info().print(errors.GetPC(), args...)
+	(*Logger)(l).Info().print(errors.GetPC(), args...)
 }
 func (l *stdLogger) Infof(format string, args ...interface{}) {
-	l.Logger.Info().printf(errors.GetPC(), format, args...)
+	(*Logger)(l).Info().printf(errors.GetPC(), format, args...)
 }
 func (l *stdLogger) Infoln(args ...interface{}) {
-	l.Logger.Info().print(errors.GetPC(), args...)
+	(*Logger)(l).Info().print(errors.GetPC(), args...)
 }
 func (l *stdLogger) Warn(args ...interface{}) {
-	l.Logger.Warn().print(errors.GetPC(), args...)
+	(*Logger)(l).Warn().print(errors.GetPC(), args...)
 }
 func (l *stdLogger) Warnf(format string, args ...interface{}) {
-	l.Logger.Warn().printf(errors.GetPC(), format, args...)
+	(*Logger)(l).Warn().printf(errors.GetPC(), format, args...)
 }
 func (l *stdLogger) Warnln(args ...interface{}) {
-	l.Logger.Warn().print(errors.GetPC(), args...)
+	(*Logger)(l).Warn().print(errors.GetPC(), args...)
 }
 
 func (l *stdLogger) Fatal(args ...interface{}) {
-	l.Logger.Fatal().print(errors.GetPC(), args...)
+	(*Logger)(l).Fatal().print(errors.GetPC(), args...)
 }
 func (l *stdLogger) Fatalf(format string, args ...interface{}) {
-	l.Logger.Fatal().printf(errors.GetPC(), format, args...)
+	(*Logger)(l).Fatal().printf(errors.GetPC(), format, args...)
 }
 func (l *stdLogger) Fatalln(args ...interface{}) {
-	l.Logger.Fatal().print(errors.GetPC(), args...)
+	(*Logger)(l).Fatal().print(errors.GetPC(), args...)
 }
 
 func (l *stdLogger) Panic(args ...interface{}) {
-	l.Logger.Panic().print(errors.GetPC(), args...)
+	(*Logger)(l).Panic().print(errors.GetPC(), args...)
 }
 func (l *stdLogger) Panicf(format string, args ...interface{}) {
-	l.Logger.Panic().printf(errors.GetPC(), format, args...)
+	(*Logger)(l).Panic().printf(errors.GetPC(), format, args...)
 }
 func (l *stdLogger) Panicln(args ...interface{}) {
-	l.Logger.Panic().print(errors.GetPC(), args...)
+	(*Logger)(l).Panic().print(errors.GetPC(), args...)
 }
 
 func (l *stdLogger) Print(args ...interface{}) {
-	l.Logger.Info().print(errors.GetPC(), args...)
+	(*Logger)(l).Info().print(errors.GetPC(), args...)
 }
 func (l *stdLogger) Printf(format string, args ...interface{}) {
-	l.Logger.Info().printf(errors.GetPC(), format, args...)
+	(*Logger)(l).Info().printf(errors.GetPC(), format, args...)
 }
 func (l *stdLogger) Println(args ...interface{}) {
-	l.Logger.Info().print(errors.GetPC(), args...)
+	(*Logger)(l).Info().print(errors.GetPC(), args...)
 }
 
 func (e *Event) print(pc errors.PC, args ...interface{}) {
-	if e != nil && e.Enabled() {
+	if (*zerolog.Event)(e).Enabled() {
 		// e.CallerSkipFrame(1).Msg(fmt.Sprint(args...))
 		// e = e.Timestamp().Str(
 		e = e.Str(
@@ -125,7 +123,7 @@ func (e *Event) print(pc errors.PC, args ...interface{}) {
 }
 
 func (e *Event) printf(pc errors.PC, format string, args ...interface{}) {
-	if e != nil && e.Enabled() {
+	if (*zerolog.Event)(e).Enabled() {
 		// e.CallerSkipFrame(1).Msg(fmt.Sprint(args...))
 		// e = e.Timestamp().Str(
 		e = e.Str(

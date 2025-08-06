@@ -42,16 +42,10 @@ var (
 )
 
 func NewGormLogger(ctx context.Context, logger Logger) *GormLogger {
-	return &GormLogger{
-		Logger: logger,
-		ctx:    ctx,
-	}
+	return (*GormLogger)(&logger)
 }
 
-type GormLogger struct {
-	Logger
-	ctx context.Context
-}
+type GormLogger Logger
 
 // Info print info
 func (l GormLogger) Info(ctx context.Context, msg string, data ...interface{}) {
@@ -75,7 +69,7 @@ func (l GormLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 	zlog := Ctx(ctx)
 
 	// return if zerolog is disabled
-	if zlog.GetLevel() == zerolog.Disabled {
+	if (*zerolog.Logger)(zlog).GetLevel() == zerolog.Disabled {
 		return
 	}
 
@@ -155,15 +149,15 @@ func (l GormLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 func (l *GormLogger) LogMode(level logger.LogLevel) logger.Interface {
 	switch level {
 	case logger.Silent:
-		toGormEvent(l.Logger.Trace())
+		toGormEvent((*Logger)(l).Trace())
 	case logger.Error:
-		toGormEvent(l.Logger.Error())
+		toGormEvent((*Logger)(l).Error())
 	case logger.Warn:
-		toGormEvent(l.Logger.Warn())
+		toGormEvent((*Logger)(l).Warn())
 	case logger.Info:
-		toGormEvent(l.Logger.Info())
+		toGormEvent((*Logger)(l).Info())
 	default:
-		toGormEvent(l.Logger.Info())
+		toGormEvent((*Logger)(l).Info())
 	}
 	return l
 }

@@ -69,15 +69,9 @@ var _ = func() bool {
 	return true
 }()
 
-type Logger struct {
-	zerolog.Logger
-}
-type Context struct {
-	zerolog.Context
-}
-type Event struct {
-	zerolog.Event
-}
+type Logger zerolog.Logger
+type Context zerolog.Context
+type Event zerolog.Event
 
 func SetGlobalLevel(l Level) {
 	zerolog.SetGlobalLevel(zerolog.Level(l))
@@ -111,20 +105,16 @@ func toEvent(event *zerolog.Event) *Event {
 }
 
 func New(w io.Writer) Logger {
-	return Logger{
-		Logger: zerolog.New(w),
-	}
+	return Logger(zerolog.New(w))
 }
 
 // Nop returns a disabled logger for which all operation are no-op.
 func Nop() Logger {
-	return Logger{
-		Logger: zerolog.Nop(),
-	}
+	return Logger(zerolog.Nop())
 }
 
 func (l Logger) WithContext(ctx context.Context) context.Context {
-	return l.Logger.WithContext(ctx)
+	return zerolog.Logger(l).WithContext(ctx)
 }
 
 func Ctx(ctx context.Context) *Logger {
@@ -133,32 +123,28 @@ func Ctx(ctx context.Context) *Logger {
 
 // Output duplicates the current logger and sets w as its output.
 func (l Logger) Output(w io.Writer) Logger {
-	return Logger{
-		Logger: l.Logger.Output(w),
-	}
+	return Logger(l.Output(w))
 }
 
 // With creates a child logger with the field added to its context.
 func (l Logger) With() Context {
-	return Context{
-		Context: l.Logger.With(),
-	}
+	return Context(zerolog.Logger(l).With())
 }
 
 // UpdateContext updates the internal logger's context.
 //
 // Use this method with caution. If unsure, prefer the With method.
 func (l *Logger) UpdateContext(update func(c Context) Context) {
-	l.Logger.UpdateContext(
+	(*zerolog.Logger)(l).UpdateContext(
 		func(c zerolog.Context) zerolog.Context {
-			return update(Context{c}).Context
+			return zerolog.Context(update(Context(c)))
 		},
 	)
 }
 
 // Level creates a child logger with the minimum accepted level set to level.
 func (l Logger) Level(lvl zerolog.Level) Logger {
-	l.Logger = l.Logger.Level(lvl)
+	l = Logger(zerolog.Logger(l).Level(lvl))
 	return l
 }
 
@@ -169,13 +155,13 @@ func (l Logger) Level(lvl zerolog.Level) Logger {
 
 // Sample returns a logger with the s sampler.
 func (l Logger) Sample(s zerolog.Sampler) Logger {
-	l.Logger = l.Logger.Sample(s)
+	l = Logger(zerolog.Logger(l).Sample(s))
 	return l
 }
 
 // Hook returns a logger with the h Hook.
 func (l Logger) Hook(h zerolog.Hook) Logger {
-	l.Logger = l.Logger.Hook(h)
+	l = Logger(zerolog.Logger(l).Hook(h))
 	return l
 }
 
@@ -183,88 +169,88 @@ func (l Logger) Hook(h zerolog.Hook) Logger {
 //
 // You must call Msg on the returned event in order to send the event.
 func (l *Logger) Trace() *Event {
-	return toEvent(l.Logger.Trace().Timestamp())
+	return toEvent((*zerolog.Logger)(l).Trace().Timestamp())
 }
 
 // Debug starts a new message with debug level.
 //
 // You must call Msg on the returned event in order to send the event.
 func (l *Logger) Debug() *Event {
-	return toEvent(l.Logger.Debug().Timestamp())
+	return toEvent((*zerolog.Logger)(l).Debug().Timestamp())
 }
 
 // Info starts a new message with info level.
 //
 // You must call Msg on the returned event in order to send the event.
 func (l *Logger) Info() *Event {
-	return toEvent(l.Logger.Info().Timestamp())
+	return toEvent((*zerolog.Logger)(l).Info().Timestamp())
 }
 
 // Warn starts a new message with warn level.
 //
 // You must call Msg on the returned event in order to send the event.
 func (l *Logger) Warn() *Event {
-	return toEvent(l.Logger.Warn().Timestamp())
+	return toEvent((*zerolog.Logger)(l).Warn().Timestamp())
 }
 
 func (l *Logger) Error() *Event {
-	return toEvent(l.Logger.Error().Timestamp())
+	return toEvent((*zerolog.Logger)(l).Error().Timestamp())
 }
 
 func (l *Logger) Err(err error) *Event {
-	return toEvent(l.Logger.Err(err))
+	return toEvent((*zerolog.Logger)(l).Err(err))
 }
 
 func (l *Logger) Fatal() *Event {
-	return toEvent(l.Logger.Fatal())
+	return toEvent((*zerolog.Logger)(l).Fatal())
 }
 
 func (l *Logger) Panic() *Event {
-	return toEvent(l.Logger.Panic())
+	return toEvent((*zerolog.Logger)(l).Panic())
 }
 
 func (l *Logger) WithLevel(level zerolog.Level) *Event {
-	return toEvent(l.Logger.WithLevel(level))
+	return toEvent((*zerolog.Logger)(l).WithLevel(level))
 }
 
 func (l *Logger) Log() *Event {
-	return toEvent(l.Logger.Log())
+	return toEvent((*zerolog.Logger)(l).Log())
 }
 
 // Print sends a log event using debug level and no extra field.
 // Arguments are handled in the manner of fmt.Print.
 func (l *Logger) Print(v ...interface{}) {
-	l.Logger.Print(v...)
+	(*zerolog.Logger)(l).Print(v...)
 }
 
 // Printf sends a log event using debug level and no extra field.
 // Arguments are handled in the manner of fmt.Printf.
 func (l *Logger) Printf(format string, v ...interface{}) {
-	l.Logger.Printf(format, v...)
+	(*zerolog.Logger)(l).Printf(format, v...)
 }
 
 // Write implements the io.Writer interface. This is useful to set as a writer
 // for the standard library log.
 func (l Logger) Write(p []byte) (n int, err error) {
-	return l.Logger.Write(p)
+	return (zerolog.Logger)(l).Write(p)
 }
 
 // Logger returns the logger with the context previously set.
 func (c Context) Logger() Logger {
-	return Logger{c.Context.Logger()}
+	return Logger(zerolog.Context(c).Logger())
 }
 
 // Fields is a helper function to use a map or slice to set fields using type assertion.
 // Only map[string]interface{} and []interface{} are accepted. []interface{} must
 // alternate string keys and arbitrary values, and extraneous ones are ignored.
 func (c Context) Fields(fields interface{}) Context {
-	c.Context = c.Context.Fields(fields)
+	c = Context(zerolog.Context(c).Fields(fields))
 	return c
 }
 
 // Dict adds the field key with the dict to the logger context.
 func (c Context) Dict(key string, dict *zerolog.Event) Context {
-	c.Context = c.Context.Dict(key, dict)
+	c = Context(zerolog.Context(c).Dict(key, dict))
 	return c
 }
 
@@ -272,49 +258,49 @@ func (c Context) Dict(key string, dict *zerolog.Event) Context {
 // Use zerolog.Arr() to create the array or pass a type that
 // implement the LogArrayMarshaler interface.
 func (c Context) Array(key string, arr zerolog.LogArrayMarshaler) Context {
-	c.Context = c.Context.Array(key, arr)
+	c = Context(zerolog.Context(c).Array(key, arr))
 	return c
 }
 
 // Object marshals an object that implement the LogObjectMarshaler interface.
 func (c Context) Object(key string, obj zerolog.LogObjectMarshaler) Context {
-	c.Context = c.Context.Object(key, obj)
+	c = Context(zerolog.Context(c).Object(key, obj))
 	return c
 }
 
 // EmbedObject marshals and Embeds an object that implement the LogObjectMarshaler interface.
 func (c Context) EmbedObject(obj zerolog.LogObjectMarshaler) Context {
-	c.Context = c.Context.EmbedObject(obj)
+	c = Context(zerolog.Context(c).EmbedObject(obj))
 	return c
 }
 
 // Str adds the field key with val as a string to the logger context.
 func (c Context) Str(key, val string) Context {
-	c.Context = c.Context.Str(key, val)
+	c = Context(zerolog.Context(c).Str(key, val))
 	return c
 }
 
 // Strs adds the field key with val as a string to the logger context.
 func (c Context) Strs(key string, vals []string) Context {
-	c.Context = c.Context.Strs(key, vals)
+	c = Context(zerolog.Context(c).Strs(key, vals))
 	return c
 }
 
 // Stringer adds the field key with val.String() (or null if val is nil) to the logger context.
 func (c Context) Stringer(key string, val fmt.Stringer) Context {
-	c.Context = c.Context.Stringer(key, val)
+	c = Context(zerolog.Context(c).Stringer(key, val))
 	return c
 }
 
 // Bytes adds the field key with val as a []byte to the logger context.
 func (c Context) Bytes(key string, val []byte) Context {
-	c.Context = c.Context.Bytes(key, val)
+	c = Context(zerolog.Context(c).Bytes(key, val))
 	return c
 }
 
 // Hex adds the field key with val as a hex string to the logger context.
 func (c Context) Hex(key string, val []byte) Context {
-	c.Context = c.Context.Hex(key, val)
+	c = Context(zerolog.Context(c).Hex(key, val))
 	return c
 }
 
@@ -323,216 +309,216 @@ func (c Context) Hex(key string, val []byte) Context {
 // No sanity check is performed on b; it must not contain carriage returns and
 // be valid JSON.
 func (c Context) RawJSON(key string, b []byte) Context {
-	c.Context = c.Context.RawJSON(key, b)
+	c = Context(zerolog.Context(c).RawJSON(key, b))
 	return c
 }
 
 // AnErr adds the field key with serialized err to the logger context.
 func (c Context) AnErr(key string, err error) Context {
-	c.Context = c.Context.AnErr(key, err)
+	c = Context(zerolog.Context(c).AnErr(key, err))
 	return c
 }
 
 // Errs adds the field key with errs as an array of serialized errors to the
 // logger context.
 func (c Context) Errs(key string, errs []error) Context {
-	c.Context = c.Context.Errs(key, errs)
+	c = Context(zerolog.Context(c).Errs(key, errs))
 	return c
 }
 
 // Err adds the field "error" with serialized err to the logger context.
 func (c Context) Err(err error) Context {
-	c.Context = c.Context.Err(err)
+	c = Context(zerolog.Context(c).Err(err))
 	return c
 }
 
 // Bool adds the field key with val as a bool to the logger context.
 func (c Context) Bool(key string, b bool) Context {
-	c.Context = c.Context.Bool(key, b)
+	c = Context(zerolog.Context(c).Bool(key, b))
 	return c
 }
 
 // Bools adds the field key with val as a []bool to the logger context.
 func (c Context) Bools(key string, b []bool) Context {
-	c.Context = c.Context.Bools(key, b)
+	c = Context(zerolog.Context(c).Bools(key, b))
 	return c
 }
 
 // Int adds the field key with i as a int to the logger context.
 func (c Context) Int(key string, i int) Context {
-	c.Context = c.Context.Int(key, i)
+	c = Context(zerolog.Context(c).Int(key, i))
 	return c
 }
 
 // Ints adds the field key with i as a []int to the logger context.
 func (c Context) Ints(key string, i []int) Context {
-	c.Context = c.Context.Ints(key, i)
+	c = Context(zerolog.Context(c).Ints(key, i))
 	return c
 }
 
 // Int8 adds the field key with i as a int8 to the logger context.
 func (c Context) Int8(key string, i int8) Context {
-	c.Context = c.Context.Int8(key, i)
+	c = Context(zerolog.Context(c).Int8(key, i))
 	return c
 }
 
 // Ints8 adds the field key with i as a []int8 to the logger context.
 func (c Context) Ints8(key string, i []int8) Context {
-	c.Context = c.Context.Ints8(key, i)
+	c = Context(zerolog.Context(c).Ints8(key, i))
 	return c
 }
 
 // Int16 adds the field key with i as a int16 to the logger context.
 func (c Context) Int16(key string, i int16) Context {
-	c.Context = c.Context.Int16(key, i)
+	c = Context(zerolog.Context(c).Int16(key, i))
 	return c
 }
 
 // Ints16 adds the field key with i as a []int16 to the logger context.
 func (c Context) Ints16(key string, i []int16) Context {
-	c.Context = c.Context.Ints16(key, i)
+	c = Context(zerolog.Context(c).Ints16(key, i))
 	return c
 }
 
 // Int32 adds the field key with i as a int32 to the logger context.
 func (c Context) Int32(key string, i int32) Context {
-	c.Context = c.Context.Int32(key, i)
+	c = Context(zerolog.Context(c).Int32(key, i))
 	return c
 }
 
 // Ints32 adds the field key with i as a []int32 to the logger context.
 func (c Context) Ints32(key string, i []int32) Context {
-	c.Context = c.Context.Ints32(key, i)
+	c = Context(zerolog.Context(c).Ints32(key, i))
 	return c
 }
 
 // Int64 adds the field key with i as a int64 to the logger context.
 func (c Context) Int64(key string, i int64) Context {
-	c.Context = c.Context.Int64(key, i)
+	c = Context(zerolog.Context(c).Int64(key, i))
 	return c
 }
 
 // Ints64 adds the field key with i as a []int64 to the logger context.
 func (c Context) Ints64(key string, i []int64) Context {
-	c.Context = c.Context.Ints64(key, i)
+	c = Context(zerolog.Context(c).Ints64(key, i))
 	return c
 }
 
 // Uint adds the field key with i as a uint to the logger context.
 func (c Context) Uint(key string, i uint) Context {
-	c.Context = c.Context.Uint(key, i)
+	c = Context(zerolog.Context(c).Uint(key, i))
 	return c
 }
 
 // Uints adds the field key with i as a []uint to the logger context.
 func (c Context) Uints(key string, i []uint) Context {
-	c.Context = c.Context.Uints(key, i)
+	c = Context(zerolog.Context(c).Uints(key, i))
 	return c
 }
 
 // Uint8 adds the field key with i as a uint8 to the logger context.
 func (c Context) Uint8(key string, i uint8) Context {
-	c.Context = c.Context.Uint8(key, i)
+	c = Context(zerolog.Context(c).Uint8(key, i))
 	return c
 }
 
 // Uints8 adds the field key with i as a []uint8 to the logger context.
 func (c Context) Uints8(key string, i []uint8) Context {
-	c.Context = c.Context.Uints8(key, i)
+	c = Context(zerolog.Context(c).Uints8(key, i))
 	return c
 }
 
 // Uint16 adds the field key with i as a uint16 to the logger context.
 func (c Context) Uint16(key string, i uint16) Context {
-	c.Context = c.Context.Uint16(key, i)
+	c = Context(zerolog.Context(c).Uint16(key, i))
 	return c
 }
 
 // Uints16 adds the field key with i as a []uint16 to the logger context.
 func (c Context) Uints16(key string, i []uint16) Context {
-	c.Context = c.Context.Uints16(key, i)
+	c = Context(zerolog.Context(c).Uints16(key, i))
 	return c
 }
 
 // Uint32 adds the field key with i as a uint32 to the logger context.
 func (c Context) Uint32(key string, i uint32) Context {
-	c.Context = c.Context.Uint32(key, i)
+	c = Context(zerolog.Context(c).Uint32(key, i))
 	return c
 }
 
 // Uints32 adds the field key with i as a []uint32 to the logger context.
 func (c Context) Uints32(key string, i []uint32) Context {
-	c.Context = c.Context.Uints32(key, i)
+	c = Context(zerolog.Context(c).Uints32(key, i))
 	return c
 }
 
 // Uint64 adds the field key with i as a uint64 to the logger context.
 func (c Context) Uint64(key string, i uint64) Context {
-	c.Context = c.Context.Uint64(key, i)
+	c = Context(zerolog.Context(c).Uint64(key, i))
 	return c
 }
 
 // Uints64 adds the field key with i as a []uint64 to the logger context.
 func (c Context) Uints64(key string, i []uint64) Context {
-	c.Context = c.Context.Uints64(key, i)
+	c = Context(zerolog.Context(c).Uints64(key, i))
 	return c
 }
 
 // Float32 adds the field key with f as a float32 to the logger context.
 func (c Context) Float32(key string, f float32) Context {
-	c.Context = c.Context.Float32(key, f)
+	c = Context(zerolog.Context(c).Float32(key, f))
 	return c
 }
 
 // Floats32 adds the field key with f as a []float32 to the logger context.
 func (c Context) Floats32(key string, f []float32) Context {
-	c.Context = c.Context.Floats32(key, f)
+	c = Context(zerolog.Context(c).Floats32(key, f))
 	return c
 }
 
 // Float64 adds the field key with f as a float64 to the logger context.
 func (c Context) Float64(key string, f float64) Context {
-	c.Context = c.Context.Float64(key, f)
+	c = Context(zerolog.Context(c).Float64(key, f))
 	return c
 }
 
 // Floats64 adds the field key with f as a []float64 to the logger context.
 func (c Context) Floats64(key string, f []float64) Context {
-	c.Context = c.Context.Floats64(key, f)
+	c = Context(zerolog.Context(c).Floats64(key, f))
 	return c
 }
 
 func (c Context) Timestamp() Context {
-	c.Context = c.Context.Timestamp()
+	c = Context(zerolog.Context(c).Timestamp())
 	return c
 }
 
 // Time adds the field key with t formated as string using zerolog.TimeFieldFormat.
 func (c Context) Time(key string, t time.Time) Context {
-	c.Context = c.Context.Time(key, t)
+	c = Context(zerolog.Context(c).Time(key, t))
 	return c
 }
 
 // Times adds the field key with t formated as string using zerolog.TimeFieldFormat.
 func (c Context) Times(key string, t []time.Time) Context {
-	c.Context = c.Context.Times(key, t)
+	c = Context(zerolog.Context(c).Times(key, t))
 	return c
 }
 
 // Dur adds the fields key with d divided by unit and stored as a float.
 func (c Context) Dur(key string, d time.Duration) Context {
-	c.Context = c.Context.Dur(key, d)
+	c = Context(zerolog.Context(c).Dur(key, d))
 	return c
 }
 
 // Durs adds the fields key with d divided by unit and stored as a float.
 func (c Context) Durs(key string, d []time.Duration) Context {
-	c.Context = c.Context.Durs(key, d)
+	c = Context(zerolog.Context(c).Durs(key, d))
 	return c
 }
 
 func (c Context) Interface(key string, i interface{}) Context {
-	c.Context = c.Context.Interface(key, i)
+	c = Context(zerolog.Context(c).Interface(key, i))
 	return c
 }
 
@@ -552,38 +538,38 @@ func (ch callerHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
 }
 
 func (c Context) Caller() Context {
-	logger := c.Context.Logger().Hook(&callerHook{2 + zerolog.CallerSkipFrameCount})
-	c = *loggerToContext(&logger)
+	logger := c.Logger().Hook(&callerHook{2 + zerolog.CallerSkipFrameCount})
+	c = *loggerToContext((*zerolog.Logger)(&logger))
 	return c
 }
 
 func (c Context) CallerWithSkipFrameCount(skipFrameCount int) Context {
-	logger := c.Context.Logger().Hook(&callerHook{skipFrameCount + zerolog.CallerSkipFrameCount})
-	c = *loggerToContext(&logger)
+	logger := c.Logger().Hook(&callerHook{skipFrameCount + zerolog.CallerSkipFrameCount})
+	c = *loggerToContext((*zerolog.Logger)(&logger))
 	return c
 }
 
 // Stack enables stack trace printing for the error passed to Err().
 func (c Context) Stack() Context {
-	c.Context = c.Context.Stack()
+	c = Context(zerolog.Context(c).Stack())
 	return c
 }
 
 // IPAddr adds IPv4 or IPv6 Address to the context
 func (c Context) IPAddr(key string, ip net.IP) Context {
-	c.Context = c.Context.IPAddr(key, ip)
+	c = Context(zerolog.Context(c).IPAddr(key, ip))
 	return c
 }
 
 // IPPrefix adds IPv4 or IPv6 Prefix (address and mask) to the context
 func (c Context) IPPrefix(key string, pfx net.IPNet) Context {
-	c.Context = c.Context.IPPrefix(key, pfx)
+	c = Context(zerolog.Context(c).IPPrefix(key, pfx))
 	return c
 }
 
 // MACAddr adds MAC address to the context
 func (c Context) MACAddr(key string, ha net.HardwareAddr) Context {
-	c.Context = c.Context.MACAddr(key, ha)
+	c = Context(zerolog.Context(c).MACAddr(key, ha))
 	return c
 }
 
