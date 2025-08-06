@@ -40,9 +40,3 @@ func buildStack(s []uintptr) int
 
 //go:noinline
 func buildStack2(s []uintptr) int
-
-type PC uintptr
-
-func (p PC) CallerFrame() (c *caller) {
-	return CallerFrame(uintptr(p))
-}

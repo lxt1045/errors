@@ -152,3 +152,9 @@ func SkipFileContains(pre string) SkipFrame {
 		return strings.Contains(File, pre)
 	}
 }
+
+type PC uintptr
+
+func (p PC) CallerFrame() (c *caller) {
+	return CallerFrame(uintptr(p))
+}
