@@ -148,10 +148,10 @@ func (l Logger) Level(lvl zerolog.Level) Logger {
 	return l
 }
 
-// // GetLevel returns the current Level of l.
-// func (l Logger) GetLevel() Level {
-// 	return l.level
-// }
+// GetLevel returns the current Level of l.
+func (l Logger) GetLevel() Level {
+	return Level(zerolog.Logger(l).GetLevel())
+}
 
 // Sample returns a logger with the s sampler.
 func (l Logger) Sample(s zerolog.Sampler) Logger {
