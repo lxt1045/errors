@@ -44,7 +44,7 @@ func Register(e error, f func(err error) string) (err error) {
 		err = NewCode(1, 0, "error type already registered")
 		return
 	}
-	mErrFunc.Store(errKey(err), f)
+	mErrFunc.Store(errKey(e), f)
 	return
 }
 
