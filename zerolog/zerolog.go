@@ -198,15 +198,15 @@ func (l *Logger) Error() *Event {
 }
 
 func (l *Logger) Err(err error) *Event {
-	return toEvent((*zerolog.Logger)(l).Err(err))
+	return toEvent((*zerolog.Logger)(l).Err(err).Timestamp())
 }
 
 func (l *Logger) Fatal() *Event {
-	return toEvent((*zerolog.Logger)(l).Fatal())
+	return toEvent((*zerolog.Logger)(l).Fatal().Timestamp())
 }
 
 func (l *Logger) Panic() *Event {
-	return toEvent((*zerolog.Logger)(l).Panic())
+	return toEvent((*zerolog.Logger)(l).Panic().Timestamp())
 }
 
 func (l *Logger) WithLevel(level zerolog.Level) *Event {
@@ -214,7 +214,7 @@ func (l *Logger) WithLevel(level zerolog.Level) *Event {
 }
 
 func (l *Logger) Log() *Event {
-	return toEvent((*zerolog.Logger)(l).Log())
+	return toEvent((*zerolog.Logger)(l).Log().Timestamp())
 }
 
 // Print sends a log event using debug level and no extra field.
