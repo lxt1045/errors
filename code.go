@@ -125,6 +125,16 @@ type Code struct {
 	skip  int
 }
 
+func (e *Code) WithErr(err error) *Code {
+	if err == nil {
+		return NewCode(1, e.code, e.msg)
+	}
+	if f := getErrorFunc(err); f != nil {
+		return NewCode(1, e.code, e.msg+"; "+f(err))
+	}
+	return NewCode(1, e.code, e.msg+"; "+err.Error())
+}
+
 func (e *Code) Clone(msg ...string) *Code {
 	if len(msg) > 0 {
 		return NewCode(1, e.code, e.msg+"; "+strings.Join(msg, ";"))
