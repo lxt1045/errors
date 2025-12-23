@@ -147,6 +147,18 @@ func (e *Code) Clonef(format string, a ...interface{}) *Code {
 	return NewCode(1, e.code, msg)
 }
 
+func (e *Code) New(msg ...string) *Code {
+	if len(msg) > 0 {
+		return NewCode(1, e.code, strings.Join(msg, ";"))
+	}
+	return NewCode(1, e.code, e.msg)
+}
+
+func (e *Code) Newf(format string, a ...interface{}) *Code {
+	msg := fmt.Sprintf(format, a...)
+	return NewCode(1, e.code, msg)
+}
+
 func (e *Code) SkipClone(skip int, msg ...string) *Code {
 	if len(msg) > 0 {
 		return NewCode(skip+1, e.code, e.msg+"; "+strings.Join(msg, ";"))
@@ -156,6 +168,17 @@ func (e *Code) SkipClone(skip int, msg ...string) *Code {
 
 func (e *Code) SkipClonef(skip int, format string, a ...interface{}) *Code {
 	msg := fmt.Sprintf(e.msg+"; "+format, a...)
+	return NewCode(skip+1, e.code, msg)
+}
+func (e *Code) SkipNew(skip int, msg ...string) *Code {
+	if len(msg) > 0 {
+		return NewCode(skip+1, e.code, strings.Join(msg, ";"))
+	}
+	return NewCode(skip+1, e.code, e.msg)
+}
+
+func (e *Code) SkipNewf(skip int, format string, a ...interface{}) *Code {
+	msg := fmt.Sprintf(format, a...)
 	return NewCode(skip+1, e.code, msg)
 }
 
