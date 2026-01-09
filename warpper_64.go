@@ -20,22 +20,40 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//go:build !amd64 && amd64p32 && arm64
-// +build !amd64,amd64p32,arm64
+//go:build amd64 || amd64p32 || arm64
+// +build amd64 amd64p32 arm64
 
 package errors
 
 import (
+	"fmt"
 	_ "unsafe" //nolint:bgolint
 )
 
-var getPC func() [1]uintptr = getPCSlow
+//go:noinline
+//Wrap 需要禁止内联,因为内联后,将无法通过 BP 获取正确的PC。
+func Wrap(err error, format string, ifaces ...interface{}) error {
+	if err == nil {
+		return nil
+	}
+	if len(ifaces) > 0 {
+		format = fmt.Sprintf(format, ifaces...)
+	}
+	return &wrapper{
+		pc:  getPC(),
+		err: err,
+		msg: format,
+	}
+}
 
-// var GetPC func() uintptr = *(*func() uintptr)(unsafe.Pointer(&getPC))
-
-var buildStack func(s []uintptr) int = buildStackSlow
-
-func GetPC() PC {
-	ps := getPC()
-	return PC(ps[0])
+//go:noinline
+func NewLine(format string, ifaces ...interface{}) error {
+	if len(ifaces) > 0 {
+		format = fmt.Sprintf(format, ifaces...)
+	}
+	return &wrapper{
+		pc:  getPC(),
+		err: nil,
+		msg: format,
+	}
 }
