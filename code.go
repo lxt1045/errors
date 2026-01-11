@@ -203,7 +203,10 @@ func (e *Code) Stack() (stack []string) {
 	if e.cache == nil {
 		return
 	}
-	return e.cache.stack
+	if len(e.cache.stack) > e.skip {
+		return e.cache.stack[e.skip:]
+	}
+	return
 }
 
 func (e *Code) Is(err error) bool {
