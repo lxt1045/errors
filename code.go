@@ -199,6 +199,12 @@ func (e *Code) Code() int {
 func (e *Code) Msg() string {
 	return e.msg
 }
+func (e *Code) Stack() (stack []string) {
+	if e.cache == nil {
+		return
+	}
+	return e.cache.stack
+}
 
 func (e *Code) Is(err error) bool {
 	to, ok := err.(*Code)

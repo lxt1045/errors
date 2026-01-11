@@ -111,6 +111,31 @@ func TestNew(t *testing.T) {
 	})
 }
 
+func Test_NewCodeWithStack(t *testing.T) {
+	t.Run("NewCodeWithStack", func(t *testing.T) {
+		code := NewCodeWithStack(2222, "test", []string{
+			"(service/peer_service.go:43) main.(*socksSvc).Auth",
+			"(rpc/method.go:25) rpc.SvcMethod.SvcInvoke",
+			"(codec/reply.go:25) codec.(*Codec).Handler",
+			"(runtime/asm_amd64.s:1700) runtime.goexit",
+		})
+		t.Logf("%v", code.Error())
+
+		bs, err := json.Marshal(code)
+		if err != nil {
+			t.Fatal(err)
+		}
+		t.Logf("json:%s", bs)
+	})
+
+	t.Run("NewCode", func(t *testing.T) {
+		func() {
+			e := NewCode(0, errCode, errMsg)
+			t.Logf("%+v", e.Stack())
+		}()
+	})
+}
+
 func Test_Code(t *testing.T) {
 	t.Run("NewCode", func(t *testing.T) {
 		pcs := [DefaultDepth]uintptr{}
@@ -248,22 +273,6 @@ func Test_Xi(t *testing.T) {
 	}
 	fmt.Println(m[&a])
 	fmt.Println(m[&b])
-}
-
-func Test_NewCodeWithStack(t *testing.T) {
-	code := NewCodeWithStack(2222, "test", []string{
-		"(service/peer_service.go:43) main.(*socksSvc).Auth",
-		"(rpc/method.go:25) rpc.SvcMethod.SvcInvoke",
-		"(codec/reply.go:25) codec.(*Codec).Handler",
-		"(runtime/asm_amd64.s:1700) runtime.goexit",
-	})
-	t.Logf("%v", code.Error())
-
-	bs, err := json.Marshal(code)
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Logf("json:%s", bs)
 }
 
 func BenchmarkEscape(b *testing.B) {
