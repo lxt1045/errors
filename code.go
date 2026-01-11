@@ -101,10 +101,13 @@ func NewErr(code int, format string, a ...interface{}) error {
 	return NewCode(1, code, format)
 }
 
-func NewCodeNoStack(code int, msg string) error {
+func NewCodeWithStack(code int, msg string, stack []string) error {
 	return &Code{
 		code: code,
 		msg:  msg,
+		cache: &callers{
+			stack: stack,
+		},
 	}
 }
 

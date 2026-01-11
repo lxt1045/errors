@@ -250,6 +250,22 @@ func Test_Xi(t *testing.T) {
 	fmt.Println(m[&b])
 }
 
+func Test_NewCodeWithStack(t *testing.T) {
+	code := NewCodeWithStack(2222, "test", []string{
+		"(service/peer_service.go:43) main.(*socksSvc).Auth",
+		"(rpc/method.go:25) rpc.SvcMethod.SvcInvoke",
+		"(codec/reply.go:25) codec.(*Codec).Handler",
+		"(runtime/asm_amd64.s:1700) runtime.goexit",
+	})
+	t.Logf("%v", code.Error())
+
+	bs, err := json.Marshal(code)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("json:%s", bs)
+}
+
 func BenchmarkEscape(b *testing.B) {
 	b.Run("escape-buildStack2", func(b *testing.B) {
 		pcs := [DefaultDepth]uintptr{}
