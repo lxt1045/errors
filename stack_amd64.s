@@ -20,8 +20,9 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//go:build amd64 || amd64p32 
+//go:build ( amd64 || amd64p32 ) && !cgo
 // +build amd64 amd64p32 
+// +build !cgo
 
 #include "go_asm.h"
 #include "textflag.h"

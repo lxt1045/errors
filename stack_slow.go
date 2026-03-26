@@ -20,8 +20,8 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
-//go:build !amd64 && amd64p32 && arm64
-// +build !amd64,amd64p32,arm64
+//go:build (!amd64 && amd64p32 && arm64) || cgo
+// +build !amd64,amd64p32,arm64 cgo
 
 package errors
 
