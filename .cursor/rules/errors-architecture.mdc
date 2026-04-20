@@ -1,0 +1,37 @@
+---
+description: errors 库的代码布局与构建标签（build tag）约定
+alwaysApply: true
+---
+
+# errors 包架构速查
+
+核心思想：在 amd64/arm64 上用汇编通过 BP 链直接回溯获取 PC，避开 `runtime.Callers` 开销；其它平台回退到 runtime。
+
+## 目录与入口
+
+- 根包 `github.com/lxt1045/errors`：`Code`（带 code+msg+stack）、`wrapper`（带 pc+msg+inner）、`MarshalJSON/MarshalText`、`Wrap`、`New`、`NewCode`。
+- `logrus/`、`zap/`、`zerolog/`：100% 兼容三方日志库的包装层，靠 `errors.GetPC/CallersSkip` 复用 caller。
+- `jmp/`：实验性 setjmp/longjmp（amd64-only，汇编），与主逻辑解耦。
+- `cmd/`、`resource/`：示例/资源，不影响库行为。
+
+## 文件命名约定（**改动时务必同步所有同族文件**）
+
+| 基名 | `_64.go` 快速路径 | `_slow.go` 兜底 | `_amd64.s` / `_arm64.s` |
+|---|---|---|---|
+| `stack` | 声明汇编函数 `getPC / GetPC / buildStack / buildStack2` | 用 `runtime.Callers` 实现的同名变量 | 汇编实现 |
+| `code` | `NewCode`（BP 回溯 + 缓存） | `var NewCode = NewCodeSlow` | — |
+| `warpper`（注意拼写） | `Wrap / NewLine` | `var Wrap = WrapSlow` 等 | — |
+
+## 构建标签（关键不变量）
+
+- `_64.go` / `_amd64.s` / `_arm64.s`：`(amd64 || amd64p32 || arm64) && !cgo`
+- `_slow.go`（`stack_slow.go` / `code_slow.go`）：`(!amd64 && !amd64p32 && !arm64) || cgo`
+- `warpper_slow.go`：`!amd64 && !amd64p32 && !arm64`（无 cgo 分支，因为 `warpper_64.go` 无 `!cgo` 守卫）
+
+❌ 不要写 `!amd64 && amd64p32 && arm64`——GOARCH 互斥，这是恒假条件（历史 bug 来源）。
+
+新增一个只在快速路径存在的符号时（例如 `buildStack2`），**必须**在对应 `_slow.go` 中给出兜底定义，否则 `CGO_ENABLED=1`（Go 默认）下连测试都编不过。
+
+## 缓存键（易错）
+
+`stackToStr(s, l)` 返回 **指向 `pool` 数组内存** 的 `unsafe.String`，只能用于查找；**写缓存** 必须用 `stackToNewStr`（拷贝）。切勿把快速版直接作为 map key 存入。

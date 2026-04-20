@@ -39,12 +39,9 @@ var (
 )
 
 func Register(e error, f func(err error) string) (err error) {
-	fOld := getErrorFunc(e)
-	if fOld != nil {
+	if _, loaded := mErrFunc.LoadOrStore(errKey(e), f); loaded {
 		err = NewCode(1, 0, "error type already registered")
-		return
 	}
-	mErrFunc.Store(errKey(e), f)
 	return
 }
 

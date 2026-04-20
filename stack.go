@@ -59,6 +59,12 @@ func CallersSkip(skip int) (cs []caller) {
 		cacheCallers.Set(pcs, n, cs)
 	}
 	pool.Put(pcs)
+	if skip < 0 {
+		skip = 0
+	}
+	if skip >= len(cs) {
+		return nil
+	}
 	cs = cs[skip:]
 
 	return

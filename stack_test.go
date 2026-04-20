@@ -3,7 +3,6 @@ package errors
 import (
 	"runtime"
 	"testing"
-	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -62,9 +61,9 @@ func fPC0() ([1]uintptr, [1]uintptr) {
 
 //go:noinline
 func fPC2() (uintptr, uintptr) {
-	var getPC2 func() [1]uintptr = getPCSlow
-	var GetPC2 func() uintptr = *(*func() uintptr)(unsafe.Pointer(&getPC2))
-	return GetPC2(), uintptr(GetPC())
+	// var getPC2 func() [1]uintptr = getPCSlow
+	// var GetPC2 func() uintptr = *(*func() uintptr)(unsafe.Pointer(&getPC2))
+	return getPCSlow()[0], uintptr(GetPC())
 }
 
 //go:noinline

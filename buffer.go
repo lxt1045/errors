@@ -83,6 +83,62 @@ func (buf *writeBuffer) WriteByte(c byte) {
 	buf.buf = append(buf.buf, c)
 }
 
+// appendEscape 将 src 以 JSON 字符串转义规则追加到 bs 后返回。语义与 writeBuffer.WriteEscape 一致。
+func appendEscape(bs []byte, src string) []byte {
+	start := 0
+	for i := 0; i < len(src); {
+		if c := src[i]; c < utf8.RuneSelf {
+			if safeSet[c] {
+				i++
+				continue
+			}
+			if start < i {
+				bs = append(bs, src[start:i]...)
+			}
+			bs = append(bs, '\\')
+			switch c {
+			case '\\', '"':
+				bs = append(bs, c)
+			case '\n':
+				bs = append(bs, 'n')
+			case '\r':
+				bs = append(bs, 'r')
+			case '\t':
+				bs = append(bs, 't')
+			default:
+				bs = append(bs, `u00`...)
+				bs = append(bs, hex[c>>4])
+				bs = append(bs, hex[c&0xF])
+			}
+			i++
+			start = i
+			continue
+		}
+		c, size := utf8.DecodeRuneInString(src[i:])
+		if c == utf8.RuneError && size == 1 {
+			bs = append(bs, `\ufffd`...)
+			i += size
+			start = i
+			continue
+		}
+		if c == '\u2028' || c == '\u2029' {
+			if start < i {
+				bs = append(bs, src[start:i]...)
+			}
+			bs = append(bs, `\u202`...)
+			bs = append(bs, hex[c&0xF])
+			i += size
+			start = i
+			continue
+		}
+		i += size
+	}
+	if start < len(src) {
+		bs = append(bs, src[start:]...)
+	}
+	return bs
+}
+
 // WriteEscape 抄 std json 库
 func (buf *writeBuffer) WriteEscape(src string) {
 	start := 0

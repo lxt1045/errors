@@ -1,0 +1,61 @@
+---
+description: errors 库里反复踩过的坑，修改相关代码前先看
+alwaysApply: true
+---
+
+# 已知陷阱清单
+
+## 1. 序列化入口必须处理 `err == nil`
+
+`MarshalJSON` / `MarshalJSON2` / `MarshalText` 的参数是 `error`。`err == nil` 时不能走索引访问：
+
+```go
+if err == nil {
+    return []byte(`null`)
+}
+// ...后续分支末尾还要判空，避免 bs[len(bs)-1] 越界
+if len(bs) == 0 { return []byte(`null`) }
+```
+
+## 2. `fmtCode.json` / `fmtWrapper.json` 的 escape 分支必须真的不同
+
+历史上 `if !escape { append(str) } else { append(str) }` 两分支写成一模一样，导致含有 `"` / `\n` 的消息输出成非法 JSON。
+
+用 `buffer.go` 中的 `appendEscape(bs, s)` 或 `writeBuffer.WriteEscape(s)`：
+
+```go
+if !f.msgEscape {
+    bs = append(bs, f.msg...)
+} else {
+    bs = appendEscape(bs, f.msg)   // ← 必须走转义
+}
+```
+
+`fmtWrapper.json2` 的 `"caller"` 字段来自 `f.stack`（即调用栈 frame 字符串），**不是** `f.trace`（那是用户给的描述）。
+
+## 3. `skip` 语义
+
+- `Code.skip` 只用于**展示时**从 `cache.stack[e.skip:]` 开始切。取切片前用 `if e.skip < len(stack)` 保护。
+- `CallersSkip(skip)` 同理：`skip >= len(cs)` 时返回 nil，不要让 `cs[skip:]` 越界。
+- `NewCodeSlow` 历史上没设置 `c.skip`，是因为它在 `runtime.Callers(skip+baseSkip, ...)` 阶段已经丢弃了前 skip 帧，缓存内容已是 skip 之后的栈，所以展示时用 `skip=0`。改 `NewCode` 时要保持这种一致性。
+
+## 4. `sync.Pool` 里的 PCs 数组在热路径复用
+
+- 从 pool 取出的 `[DefaultDepth]uintptr` **可能含上次残留**。快速路径写入了前 n 个元素，剩余位置靠 `for i := range pcs { pcs[i] = 0 }` 手动清零，**不要删**。
+- `stackToStr(pool数组, n)` 返回的 string 只在 pool.Put 之前有效，仅用于 `cacheStack.Get`。写缓存必须用 `stackToNewStr`（拷贝）。
+
+## 5. `go:noinline` 不能省
+
+`Wrap` / `NewLine` / `NewCode` 等通过汇编 `getPC` 读取 BP，一旦被内联到调用者里，BP 链就对不齐，调用栈/行号就错。**不要**移除这些函数上的 `//go:noinline`。
+
+## 6. `Register(typ, fn)` 并发安全
+
+用 `sync.Map.LoadOrStore`，不要"先 Load 再 Store"（会出现两个 goroutine 都覆盖写）。
+
+## 7. 兼容 `runtime.Callers` 的 PC 偏移
+
+汇编 `buildStack` 按 `(BP+8)` 读上层返回地址；`runtime.Callers` 返回的是"返回地址"（即 `pc+1` 语义的那个 PC）。两者口径一致，**不要**做 `pc-1` 调整（代码里有注释版本，保持注释状态）。
+
+## 8. 测试 PC 断言对 cgo 敏感
+
+`CGO_ENABLED=1` 时走 slow 路径，`GetPC()`（stack_slow.go 里的函数）比 `getPCSlow`（直接函数指针调用）多一层栈帧，`Test_getPCSlow/GetPCSlow` 会失败——这是已知偏差。改 slow 路径时别"以为"自己破坏了测试。

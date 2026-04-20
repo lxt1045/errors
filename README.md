@@ -2,6 +2,46 @@
 
 <!-- https://github.com/bracesdev/errtrace 有类似功能 -->
 
+## 特性与优势
+
+一个**把调用栈成本压到纳秒量级**的 Go 错误处理库，定位是 `pkg/errors` 的高性能替代 + 主流日志库（logrus / zap / zerolog）的带行号兼容层。
+
+### 核心特性
+
+- **汇编级调用栈采集**：`amd64 / arm64` 上通过手写汇编沿 BP 链直接回溯，单次 `buildStack` 仅 ~29ns / 32B / 1 alloc（见 `BenchmarkLog/lxt_caller`）——比 `runtime.Callers` 快一个数量级。
+- **RCU 栈缓存**：每个物理调用点只付一次"PC→`file:line`"解析成本，之后命中缓存是纯指针比较；缓存永不失效、无锁读路径。
+- **透明兼容**：
+  - `errors.New / Errorf / Wrap / Unwrap / Is` 可直接替换标准库 `errors` 和 `pkg/errors`；
+  - `errors/logrus`、`errors/zap`、`errors/zerolog` 追求 100% 兼容上游 API，同时把 caller 的 1300~2500ns 开销砍到 ~800ns 甚至更低。
+- **业务错误码一等公民**：`NewCode(skip, code, msg)` / `Code.Is` / `Code.Clone` / `Code.WithErr` 原生支持 code + msg + stack 组合，适合 API 返回和跨层传递。
+- **结构化输出免转义**：`MarshalJSON` / `MarshalText` 自带 JSON 转义（控制字符、引号、U+2028/2029 全处理），可以直接塞进日志管道。
+- **Go 2 风格的 check/handle**：`jmp` 子包基于 setjmp/longjmp 语义提供类 Go 2 错误流控，替代 `panic/recover` 用法（amd64 专用，实验特性）。
+- **跨平台降级**：非 `amd64 / arm64` 或启用 cgo 时自动回退到 `runtime.Callers` 的纯 Go 实现，功能不降级、性能与标准库持平。
+- **零外部依赖**（主包）：核心 `errors` 包只依赖 `runtime` + 内部 `xxhash`，不会把你的依赖图拖胖。
+
+### 性能对比一览
+
+| 场景（depth=10） | 本库 | pkg/errors | 标准库 |
+|---|---|---|---|
+| `New + 10 次 Wrap + 格式化` | **~1µs 级** | ~10µs 级 | —（无栈） |
+| `zap + caller` | **~791 ns/op** | — | ~1631 ns/op（原生 caller） |
+| `logrus + caller` | **~3571 ns/op** | — | ~5203 ns/op（原生 caller） |
+| 单次 `caller` 捕获 | **~29 ns** | — | `runtime.Caller` ~数百 ns |
+
+完整数据见下方 [性能基准测试](#性能基准测试) 章节。
+
+### 何时选用本库
+
+- 高 QPS 服务里想打带行号的错误/日志，又不想被 `runtime.Callers` 的成本拖慢；
+- 需要在错误里同时承载**业务码 + 消息 + 调用栈**，并方便 JSON 序列化；
+- 用 logrus / zap / zerolog，但希望 caller 更快、API 不变；
+- 想试试 Go 2 风格的 check/handle 流控。
+
+### 何时**不**必用本库
+
+- 非 `amd64 / arm64` 生产环境（性能优势不复存在，功能上 `pkg/errors` 够用）；
+- 只需简单 `fmt.Errorf("...: %w", err)` 链路，对行号和业务码都没有要求。
+
 ## 原理
 一句话：通过汇编，从调用栈中获取 pc 和 pc 列表。\
 性能提升的具体细节，这两篇技术文章中有详细说明：
@@ -472,7 +512,58 @@ BenchmarkLog/lxt_caller-16
 
 ## 设计思路
 
+### 为什么比 `runtime.Callers` 快？
 
+`runtime.Callers` 的开销来自两部分：(1) 每次都要遍历 g 的栈上指针，(2) 为了处理内联帧会调用 `runtime.Callers` 内部的 `pcsForCaller`。
 
-# 交流学习
-![扫码加微信好友](https://github.com/lxt1045/wechatbot/blob/main/resource/Wechat-lxt.png "微信")
+本库在 `amd64 / arm64 / amd64p32` 上通过手写汇编直接沿 **BP 链**走一遍，把每层函数的返回地址填进切片（见 `stack_amd64.s` / `stack_arm64.s`）：
+
+```text
+BP ──┐         ┌── 返回地址 PC（这里读）
+     ▼         ▼
+   [+0(BP)] [+8(BP)]
+     │
+     └──► 上一层 BP（下一轮迭代）
+```
+
+这就是单次 `buildStack` 能跑到纳秒量级的原因。同时：
+- 解析（`pc → file:line`）放在第一次命中后做，结果用 RCU Map 永久缓存（`cacheStack` / `cacheCaller`）。调用位置**不变**的调用点只付一次解析成本。
+- PC 数组通过 `sync.Pool` 复用，`buildStack` 命中缓存时**不会**进入 GC 分配路径。
+
+### 快速路径 vs 慢速路径
+
+| 条件 | 使用 |
+|---|---|
+| `GOARCH ∈ {amd64, amd64p32, arm64}` 且 `CGO_ENABLED=0` | 快速汇编路径（`*_64.go` + `*_{amd64,arm64}.s`） |
+| 以上之外（含 `CGO_ENABLED=1`） | 纯 Go 回退（`*_slow.go`，基于 `runtime.Callers`） |
+
+> 默认 `go test` 在多数环境下 `CGO_ENABLED=1`，此时跑的是**慢速路径**——如果你要 bench 真正的快速路径，务必加上 `CGO_ENABLED=0`。
+
+### 已知踩坑 / 使用建议
+
+1. **`Wrap(nil, ...)` / `WrapSlow(nil, ...)` 返回 `nil`**，可以放心链式调用；但 `New / NewCode / NewLine` **不**接受"空错误"的语义，它们永远返回一个非空 `error`。
+2. **`MarshalJSON(err)` / `MarshalJSON(nil)`** 现在对 nil 直接返回 `"null"`（与 `encoding/json.Marshal` 一致），不会 panic。用它做响应体时注意前端要能处理 `null`。
+3. **`Code.Is(target)`** 只比较 `code` 字段；如果 `code == DefaultCode(-1)`，一律不相等。要避免这种"任意错误吞并"的情况，请显式指定业务码。
+4. **注册自定义错误类型** 使用 `errors.Register(typ, func(err) string { ... })`。重复注册会返回"error type already registered"，**原函数不会被覆盖**。
+5. **`NewCode(skip, code, msg)` 的 `skip`** 是展示栈时要跳过的层数（给包装函数用的），**不影响**缓存 key。同一物理调用点，不同 skip 共享同一条缓存记录。
+6. **`CallersSkip(skip)`** 在 `skip >= 栈深度` 时返回 `nil` 而非 panic，可以安全用在日志库的 caller hook 里。
+7. **`//go:noinline` 不能去掉**。`Wrap` / `NewLine` / `NewCode` 靠汇编读 BP，被内联后 BP 链会少一层，行号会错。
+8. **输出 JSON 里的 stack 字符串已做转义**。`\n`、`"`、`\t`、控制字符、U+2028/2029 全部会被转义成 `\uXXXX`，可以放心嵌进日志管道。
+
+### 跨平台构建
+
+改动涉及 `*_64.go` / `*_slow.go` / `*_{amd64,arm64}.s` 时，建议至少跑：
+
+```bash
+# 1) amd64 + cgo（Go 默认）
+go build ./... && go test -c -o /dev/null .
+
+# 2) amd64 + 关闭 cgo（走汇编快速路径）
+CGO_ENABLED=0 go build ./... && CGO_ENABLED=0 go test -c -o /dev/null .
+
+# 3) 非 amd64/arm64 平台（验证 slow 路径的构建标签）
+GOOS=linux GOARCH=386 CGO_ENABLED=0 go build .
+```
+
+`jmp/` 子包是实验性 setjmp/longjmp 实现，只在 amd64 上有效，不影响主 `errors` 包的跨平台能力。
+

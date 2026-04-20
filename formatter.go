@@ -48,9 +48,15 @@ var (
 
 // MarshalJSON 将err序列化为json格式
 func MarshalJSON(err error) (bs []byte) {
+	if err == nil {
+		return []byte(`null`)
+	}
 	buf := &writeBuffer{}
 	marshalJSON(2, buf, err)
 	bs = buf.Bytes()
+	if len(bs) == 0 {
+		return []byte(`null`)
+	}
 	if bs[len(bs)-1] == ',' {
 		bs = bs[:len(bs)-1]
 	}
@@ -255,8 +261,20 @@ func skipFile(f string) bool {
 }
 
 func MarshalJSON2(err error) (bs []byte) {
+	if err == nil {
+		return []byte(`null`)
+	}
 	bs = marshalJSON2(1, bs, err)
-	bs[len(bs)-1] = ']'
+	if len(bs) == 0 {
+		return []byte(`null`)
+	}
+	// 末尾预期为 ',' (wrapper 叠加) 或 '[' (无 wrapper); 将其替换为 ']'
+	last := bs[len(bs)-1]
+	if last == ',' || last == '[' {
+		bs[len(bs)-1] = ']'
+	} else {
+		bs = append(bs, ']')
+	}
 	bs = append(bs, '}')
 
 	return
@@ -336,11 +354,15 @@ func (f *fmtCode) json2(bs []byte) []byte {
 	bs = append(bs, `{"code":`...)
 	bs = append(bs, f.code...)
 	bs = append(bs, `,"msg":"`...)
-	bs = append(bs, f.msg...)
+	if !f.msgEscape {
+		bs = append(bs, f.msg...)
+	} else {
+		bs = appendEscape(bs, f.msg)
+	}
 	bs = append(bs, '"')
-	if len(f.stack) > 0 {
-		bs = append(bs, `,"stack":`...)
-		for i, str := range f.stack {
+	if len(f.stack) > f.skip {
+		bs = append(bs, `,"stack":[`...)
+		for i, str := range f.stack[f.skip:] {
 			if i != 0 {
 				bs = append(bs, ',')
 			}
@@ -348,10 +370,11 @@ func (f *fmtCode) json2(bs []byte) []byte {
 			if f.attr&(1<<i) == 0 {
 				bs = append(bs, str...)
 			} else {
-				bs = append(bs, str...)
+				bs = appendEscape(bs, str)
 			}
 			bs = append(bs, '"')
 		}
+		bs = append(bs, ']')
 	}
 	bs = append(bs, '}')
 	return bs
@@ -359,12 +382,16 @@ func (f *fmtCode) json2(bs []byte) []byte {
 
 func (f *fmtWrapper) json2(bs []byte) []byte {
 	bs = append(bs, `{"trace":"`...)
-	bs = append(bs, f.trace...)
-	bs = append(bs, `","caller":"`...)
 	if !f.traceEscape {
 		bs = append(bs, f.trace...)
 	} else {
-		bs = append(bs, f.trace...)
+		bs = appendEscape(bs, f.trace)
+	}
+	bs = append(bs, `","caller":"`...)
+	if (f.attr & 1) == 0 {
+		bs = append(bs, f.stack...)
+	} else {
+		bs = appendEscape(bs, f.stack)
 	}
 	bs = append(bs, `"}`...)
 	return bs

@@ -1,0 +1,33 @@
+---
+description: errors 库改动完成后必须跑的验证命令
+alwaysApply: true
+---
+
+# 修改后的最小验证矩阵
+
+改完代码后至少跑这几组命令，缺一不可（尤其是改 `*_64.go` / `*_slow.go` / `*_amd64.s` / `*_arm64.s` / 构建标签时）：
+
+```powershell
+# 1) 默认 windows/amd64 + CGO=1 构建 + 测试编译
+go build ./...
+go test -c -o nul .
+
+# 2) amd64 关闭 cgo（走快速汇编路径）
+$env:CGO_ENABLED="0"; go build ./...; go test -c -o nul .; Remove-Item env:CGO_ENABLED
+
+# 3) 非 amd64/arm64 平台（验证 *_slow.go 构建标签）
+$env:GOOS="linux"; $env:GOARCH="386"; $env:CGO_ENABLED="0"
+go build .
+Remove-Item env:GOOS; Remove-Item env:GOARCH; Remove-Item env:CGO_ENABLED
+
+# 4) 三个日志包装器
+go test -count=1 -timeout 60s ./logrus ./zap ./zerolog
+```
+
+`jmp/` 子包有 amd64-only 汇编和预先存在的 vet 警告，不阻塞主包验证。
+
+## 添加新符号到快速路径时
+
+如果在 `*_amd64.s` / `*_arm64.s` / `*_64.go` 中新增了一个导出/包级符号，**必须**在 `*_slow.go` 中给出对应的 Go 兜底实现（哪怕只是 `var X = XSlow`），否则：
+- `CGO_ENABLED=1`（Go 的默认值）下测试用到该符号就无法编译；
+- 非 amd64/arm64 平台根本链不上。
