@@ -25,18 +25,6 @@
 
 package errors
 
-import (
-	_ "unsafe" //nolint:bgolint
-)
-
-var getPC func() [1]uintptr = getPCSlow
-
-// var GetPC func() uintptr = *(*func() uintptr)(unsafe.Pointer(&getPC))
-
-var buildStack func(s []uintptr) int = buildStackSlow
-var buildStack2 func(s []uintptr) int = buildStackSlow
-
-func GetPC() PC {
-	ps := getPC()
-	return PC(ps[0])
+func IsSlow() bool {
+	return true
 }

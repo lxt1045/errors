@@ -38,6 +38,11 @@ func TestMain(m *testing.M) {
 	m.Run()
 }
 
+func TestIsSlow(t *testing.T) {
+	is := IsSlow()
+	t.Logf("IsSlow: %v", is)
+}
+
 func deepCall(depth int, f func()) {
 	if depth <= 0 {
 		f()

@@ -135,25 +135,32 @@ type Code struct {
 	skip  int
 }
 
+func JoinStr(a, con, b string) string {
+	if a == "" {
+		return b
+	}
+	return a + con + b
+}
+
 func (e *Code) WithErr(err error) *Code {
 	if err == nil {
 		return NewCode(1, e.code, e.msg)
 	}
 	if f := getErrorFunc(err); f != nil {
-		return NewCode(1, e.code, e.msg+"; "+f(err))
+		return NewCode(1, e.code, JoinStr(e.msg, "; ", f(err)))
 	}
-	return NewCode(1, e.code, e.msg+"; "+err.Error())
+	return NewCode(1, e.code, JoinStr(e.msg, "; ", err.Error()))
 }
 
 func (e *Code) Clone(msg ...string) *Code {
 	if len(msg) > 0 {
-		return NewCode(1, e.code, e.msg+"; "+strings.Join(msg, ";"))
+		return NewCode(1, e.code, JoinStr(e.msg, "; ", strings.Join(msg, ";")))
 	}
 	return NewCode(1, e.code, e.msg)
 }
 
 func (e *Code) Clonef(format string, a ...interface{}) *Code {
-	msg := fmt.Sprintf(e.msg+"; "+format, a...)
+	msg := fmt.Sprintf(JoinStr(e.msg, "; ", format), a...)
 	return NewCode(1, e.code, msg)
 }
 
@@ -171,13 +178,13 @@ func (e *Code) Newf(format string, a ...interface{}) *Code {
 
 func (e *Code) SkipClone(skip int, msg ...string) *Code {
 	if len(msg) > 0 {
-		return NewCode(skip+1, e.code, e.msg+"; "+strings.Join(msg, ";"))
+		return NewCode(skip+1, e.code, JoinStr(e.msg, "; ", strings.Join(msg, ";")))
 	}
 	return NewCode(skip+1, e.code, e.msg)
 }
 
 func (e *Code) SkipClonef(skip int, format string, a ...interface{}) *Code {
-	msg := fmt.Sprintf(e.msg+"; "+format, a...)
+	msg := fmt.Sprintf(JoinStr(e.msg, "; ", format), a...)
 	return NewCode(skip+1, e.code, msg)
 }
 func (e *Code) SkipNew(skip int, msg ...string) *Code {
@@ -333,7 +340,6 @@ func (e *Code) MarshalZerologObject(evt *zerolog.Event) {
 	evt.Int("code", e.code)
 	evt.Str("msg", e.msg)
 	evt.Array("stack", e)
-	return
 }
 
 func (e *Code) MarshalZerologArray(a *zerolog.Array) {
