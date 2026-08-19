@@ -244,7 +244,7 @@ func (l *Logger) Logf(level Level, format string, v ...interface{}) {
 	).Msgf(format, v...)
 }
 
-func (e *Event) doSlogAttr(attrs ...slog.Attr) *Event {
+func (e *Event) SlogAttr(attrs ...slog.Attr) *Event {
 	for _, a := range attrs {
 		switch a.Value.Kind() {
 		case slog.KindString:
@@ -252,7 +252,7 @@ func (e *Event) doSlogAttr(attrs ...slog.Attr) *Event {
 		case slog.KindTime:
 			e = e.Str(a.Key, a.Value.Time().String())
 		case slog.KindGroup:
-			e = e.doSlogAttr(a.Value.Group()...)
+			e = e.SlogAttr(a.Value.Group()...)
 		case slog.KindLogValuer:
 			e = e.Str(a.Key, a.Value.LogValuer().LogValue().String())
 		case slog.KindAny:
@@ -277,7 +277,7 @@ func SlogLevel(slevel slog.Level) Level {
 	}
 	return level
 }
-func (l *Logger) LogAttrs(ctx context.Context, slevel slog.Level, msg string, attrs ...slog.Attr) {
+func (l *Logger) LogAttrs(ctx context.Context, slevel slog.Level, attrs ...slog.Attr) {
 	level := SlogLevel(slevel)
 	if level < l.GetLevel() {
 		return
@@ -287,7 +287,19 @@ func (l *Logger) LogAttrs(ctx context.Context, slevel slog.Level, msg string, at
 		zerolog.CallerFieldName,
 		c.FileLine,
 	)
-	toEvent(e).doSlogAttr(attrs...).Msg(msg)
+	toEvent(e).SlogAttr(attrs...).Send()
+}
+func (l *Logger) LogfAttrs(ctx context.Context, slevel slog.Level, msg string, attrs ...slog.Attr) {
+	level := SlogLevel(slevel)
+	if level < l.GetLevel() {
+		return
+	}
+	c := errors.GetPC().CallerFrame()
+	e := (*zerolog.Logger)(l).WithLevel(zerolog.Level(level)).Str(
+		zerolog.CallerFieldName,
+		c.FileLine,
+	)
+	toEvent(e).SlogAttr(attrs...).Msg(msg)
 }
 
 func (l *Logger) Debugln(v ...interface{}) {
