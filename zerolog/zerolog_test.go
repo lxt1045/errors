@@ -2,6 +2,7 @@ package zerolog
 
 import (
 	"io"
+	"log/slog"
 	"os"
 	"testing"
 	"time"

@@ -23,6 +23,7 @@
 package zerolog
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"unsafe"
