@@ -698,7 +698,24 @@ func (ch callerHook) Run(e *zerolog.Event, level zerolog.Level, msg string) {
 	)
 }
 
+type callerWith struct {
+	pc uintptr
+}
+
+func (cw callerWith) Run(e *zerolog.Event, level zerolog.Level, msg string) {
+	c := errors.CallerFrame(cw.pc)
+	e = e.Str(
+		zerolog.CallerFieldName,
+		c.FileLine,
+	)
+}
+
 func (c Context) Caller() Context {
+	logger := c.Logger().Hook(&callerHook{2 + zerolog.CallerSkipFrameCount})
+	c = *loggerToContext((*zerolog.Logger)(&logger))
+	return c
+}
+func (c Context) WithCaller() Context {
 	logger := c.Logger().Hook(&callerHook{2 + zerolog.CallerSkipFrameCount})
 	c = *loggerToContext((*zerolog.Logger)(&logger))
 	return c
@@ -1113,6 +1130,19 @@ func (e *Event) Caller(skip ...int) *Event {
 	return toEvent(toZeroEvent(e).Caller(skip...))
 }
 
+func (e *Event) WithCaller(pc uintptr) *Event {
+	if e == nil {
+		return e
+	}
+
+	c := errors.CallerFrame(pc)
+	e = e.Str(
+		zerolog.CallerFieldName,
+		c.FileLine,
+	)
+	return e
+}
+
 // IPAddr adds IPv4 or IPv6 Address to the event
 func (e *Event) IPAddr(key string, ip net.IP) *Event {
 	return toEvent(toZeroEvent(e).IPAddr(key, ip))
@@ -1126,6 +1156,19 @@ func (e *Event) IPPrefix(key string, pfx net.IPNet) *Event {
 // MACAddr adds MAC address to the event
 func (e *Event) MACAddr(key string, ha net.HardwareAddr) *Event {
 	return toEvent(toZeroEvent(e).MACAddr(key, ha))
+}
+
+func (l *Logger) WithCaller(ctx context.Context, pc uintptr, slevel slog.Level, attrs ...slog.Attr) {
+	level := SlogLevel(slevel)
+	if level < l.GetLevel() {
+		return
+	}
+	c := errors.CallerFrame(pc)
+	e := (*zerolog.Logger)(l).WithLevel(zerolog.Level(level)).Str(
+		zerolog.CallerFieldName,
+		c.FileLine,
+	)
+	toEvent(e).SlogAttr(attrs...).Send()
 }
 
 // MACAddr adds MAC address to the event
