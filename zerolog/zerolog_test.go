@@ -15,6 +15,17 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
+func TestStr(t *testing.T) {
+	// bs := [...]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17}
+	// const M = "\001\002\003\004\005\006\007\010\011\012"
+	const M = "\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10"
+	// M := string(bs)
+	t.Logf("%X", M)
+	for i := 0; i < len(M); i++ {
+		t.Logf("%d:%0x", i, byte(M[i]))
+		t.Logf("%d:%0d", i, byte(M[i]))
+	}
+}
 func TestLog(t *testing.T) {
 	t.Run("fatal-zerolog", func(t *testing.T) {
 		defer func() {
@@ -186,6 +197,20 @@ func BenchmarkLog(b *testing.B) {
 				Str("string", `some string format log information`).
 				Int("int", 3).
 				Msg("some log messages")
+		}
+	})
+	b.Run("zerolog+lxt std context-caller", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		logger := New(io.Discard)
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			log := logger.With().Logger()
+			log.Infoln(
+				"string", `some string format log information`,
+				"int", 3,
+				"some log messages",
+			)
 		}
 	})
 
@@ -363,6 +388,24 @@ func BenchmarkLog(b *testing.B) {
 		for i := 0; i < b.N; i++ {
 			c := errors.GetPC().CallerFrame()
 			io.Discard.Write([]byte(zap.String("caller", c.FileLine).String))
+		}
+	})
+
+	b.Run("std+caller", func(b *testing.B) {
+		b.StopTimer()
+		b.ReportAllocs()
+		logger := slog.New(slog.NewTextHandler(io.Discard,
+			&slog.HandlerOptions{
+				Level:     slog.LevelDebug, // slog记录所有的日志
+				AddSource: true,            // 显示文件行号
+			}))
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			logger.Info(
+				"some log messages",
+				"string", `some string format log information`,
+				"int", 3,
+			)
 		}
 	})
 }

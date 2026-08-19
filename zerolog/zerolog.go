@@ -73,6 +73,10 @@ type Logger zerolog.Logger
 type Context zerolog.Context
 type Event zerolog.Event
 
+// GlobalLevel returns the current global log level
+func GlobalLevel() Level {
+	return Level(zerolog.GlobalLevel())
+}
 func SetGlobalLevel(l Level) {
 	zerolog.SetGlobalLevel(zerolog.Level(l))
 }
@@ -105,7 +109,7 @@ func toEvent(event *zerolog.Event) *Event {
 }
 
 func New(w io.Writer) Logger {
-	return Logger(zerolog.New(w))
+	return Logger(zerolog.New(w).Level(zerolog.GlobalLevel()))
 }
 
 // Nop returns a disabled logger for which all operation are no-op.
@@ -123,7 +127,7 @@ func Ctx(ctx context.Context) *Logger {
 
 // Output duplicates the current logger and sets w as its output.
 func (l Logger) Output(w io.Writer) Logger {
-	return Logger(l.Output(w))
+	return Logger(zerolog.Logger(l).Output(w))
 }
 
 // With creates a child logger with the field added to its context.
@@ -209,8 +213,8 @@ func (l *Logger) Panic() *Event {
 	return toEvent((*zerolog.Logger)(l).Panic().Timestamp())
 }
 
-func (l *Logger) WithLevel(level zerolog.Level) *Event {
-	return toEvent((*zerolog.Logger)(l).WithLevel(level))
+func (l *Logger) WithLevel(level Level) *Event {
+	return toEvent((*zerolog.Logger)(l).WithLevel(zerolog.Level(level)))
 }
 
 func (l *Logger) Log() *Event {
@@ -227,6 +231,147 @@ func (l *Logger) Print(v ...interface{}) {
 // Arguments are handled in the manner of fmt.Printf.
 func (l *Logger) Printf(format string, v ...interface{}) {
 	(*zerolog.Logger)(l).Printf(format, v...)
+}
+
+func (l *Logger) Logf(level Level, format string, v ...interface{}) {
+	if level < l.GetLevel() {
+		return
+	}
+	c := errors.GetPC().CallerFrame()
+	(*zerolog.Logger)(l).WithLevel(zerolog.Level(level)).Str(
+		zerolog.CallerFieldName,
+		c.FileLine,
+	).Msgf(format, v...)
+}
+
+func (e *Event) doSlogAttr(attrs ...slog.Attr) *Event {
+	for _, a := range attrs {
+		switch a.Value.Kind() {
+		case slog.KindString:
+			e = e.Str(a.Key, a.Value.String())
+		case slog.KindTime:
+			e = e.Str(a.Key, a.Value.Time().String())
+		case slog.KindGroup:
+			e = e.doSlogAttr(a.Value.Group()...)
+		case slog.KindLogValuer:
+			e = e.Str(a.Key, a.Value.LogValuer().LogValue().String())
+		case slog.KindAny:
+			e = e.Interface(a.Key, a.Value)
+		default:
+			e = e.Interface(a.Key, a.Value)
+		}
+	}
+	return e
+}
+func SlogLevel(slevel slog.Level) Level {
+	level := InfoLevel
+	switch slevel {
+	case slog.LevelDebug:
+		level = DebugLevel
+	case slog.LevelInfo:
+		level = InfoLevel
+	case slog.LevelWarn:
+		level = WarnLevel
+	case slog.LevelError:
+		level = ErrorLevel
+	}
+	return level
+}
+func (l *Logger) LogAttrs(ctx context.Context, slevel slog.Level, msg string, attrs ...slog.Attr) {
+	level := SlogLevel(slevel)
+	if level < l.GetLevel() {
+		return
+	}
+	c := errors.GetPC().CallerFrame()
+	e := (*zerolog.Logger)(l).WithLevel(zerolog.Level(level)).Str(
+		zerolog.CallerFieldName,
+		c.FileLine,
+	)
+	toEvent(e).doSlogAttr(attrs...).Msg(msg)
+}
+
+func (l *Logger) Debugln(v ...interface{}) {
+	if DebugLevel < l.GetLevel() {
+		return
+	}
+	c := errors.GetPC().CallerFrame()
+	(*zerolog.Logger)(l).Debug().Str(
+		zerolog.CallerFieldName,
+		c.FileLine,
+	).Msg(fmt.Sprint(v...))
+}
+func (l *Logger) Debugf(format string, v ...interface{}) {
+	if DebugLevel < l.GetLevel() {
+		return
+	}
+	c := errors.GetPC().CallerFrame()
+	(*zerolog.Logger)(l).Debug().Str(
+		zerolog.CallerFieldName,
+		c.FileLine,
+	).Msgf(format, v...)
+}
+
+func (l *Logger) Infof(format string, v ...interface{}) {
+	if InfoLevel < l.GetLevel() {
+		return
+	}
+	c := errors.GetPC().CallerFrame()
+	(*zerolog.Logger)(l).Info().Str(
+		zerolog.CallerFieldName,
+		c.FileLine,
+	).Msgf(format, v...)
+}
+func (l *Logger) Infoln(v ...interface{}) {
+	if InfoLevel < l.GetLevel() {
+		return
+	}
+	c := errors.GetPC().CallerFrame()
+	(*zerolog.Logger)(l).Info().Str(
+		zerolog.CallerFieldName,
+		c.FileLine,
+	).Msg(fmt.Sprint(v...))
+}
+
+func (l *Logger) Warnf(format string, v ...interface{}) {
+	if WarnLevel < l.GetLevel() {
+		return
+	}
+	c := errors.GetPC().CallerFrame()
+	(*zerolog.Logger)(l).Warn().Str(
+		zerolog.CallerFieldName,
+		c.FileLine,
+	).Msgf(format, v...)
+}
+func (l *Logger) Warnln(v ...interface{}) {
+	if WarnLevel < l.GetLevel() {
+		return
+	}
+	c := errors.GetPC().CallerFrame()
+	(*zerolog.Logger)(l).Warn().Str(
+		zerolog.CallerFieldName,
+		c.FileLine,
+	).Msg(fmt.Sprint(v...))
+}
+
+func (l *Logger) Errorf(format string, v ...interface{}) {
+	if ErrorLevel < l.GetLevel() {
+		return
+	}
+	c := errors.GetPC().CallerFrame()
+	(*zerolog.Logger)(l).Error().Str(
+		zerolog.CallerFieldName,
+		c.FileLine,
+	).Msgf(format, v...)
+}
+func (l *Logger) Errorln(v ...interface{}) {
+	if ErrorLevel < l.GetLevel() {
+		return
+	}
+	c := errors.GetPC().CallerFrame()
+	(*zerolog.Logger)(l).Error().Str(
+		zerolog.CallerFieldName,
+		c.FileLine,
+	).Msg(fmt.Sprint(v...))
 }
 
 // Write implements the io.Writer interface. This is useful to set as a writer
@@ -521,6 +666,10 @@ func (c Context) Interface(key string, i interface{}) Context {
 	c = Context(zerolog.Context(c).Interface(key, i))
 	return c
 }
+func (c Context) Any(key string, i interface{}) Context {
+	c = Context(zerolog.Context(c).Any(key, i))
+	return c
+}
 
 type callerHook struct {
 	callerSkipFrameCount int
@@ -611,6 +760,12 @@ func (e *Event) Dict(key string, dict *Event) *Event {
 func Dict() *Event {
 	return toEvent(zerolog.Dict())
 }
+func (e *Event) Ctx(ctx context.Context) *Event {
+	return toEvent(toZeroEvent(e).Ctx(ctx))
+}
+func (e *Event) GetCtx() (ctx context.Context) {
+	return toZeroEvent(e).GetCtx()
+}
 
 func (e *Event) Array(key string, arr zerolog.LogArrayMarshaler) *Event {
 	return toEvent(toZeroEvent(e).Array(key, arr))
@@ -619,6 +774,12 @@ func (e *Event) Array(key string, arr zerolog.LogArrayMarshaler) *Event {
 // Object marshals an object that implement the LogObjectMarshaler interface.
 func (e *Event) Object(key string, obj zerolog.LogObjectMarshaler) *Event {
 	return toEvent(toZeroEvent(e).Object(key, obj))
+}
+func (e *Event) Objects(key string, objs []zerolog.LogObjectMarshaler) *Event {
+	return toEvent(toZeroEvent(e).Objects(key, objs))
+}
+func (e *Event) ObjectsV(key string, objs ...zerolog.LogObjectMarshaler) *Event {
+	return toEvent(toZeroEvent(e).ObjectsV(key, objs...))
 }
 
 // Func allows an anonymous func to run only if the event is enabled.
@@ -646,6 +807,9 @@ func (e *Event) Str(key, val string) *Event {
 func (e *Event) Strs(key string, vals []string) *Event {
 	return toEvent(toZeroEvent(e).Strs(key, vals))
 }
+func (e *Event) StrsV(key string, vals ...string) *Event {
+	return toEvent(toZeroEvent(e).StrsV(key, vals...))
+}
 
 // Stringer adds the field key with val.String() (or null if val is nil)
 // to the *Event context.
@@ -655,6 +819,9 @@ func (e *Event) Stringer(key string, val fmt.Stringer) *Event {
 
 func (e *Event) Stringers(key string, vals []fmt.Stringer) *Event {
 	return toEvent(toZeroEvent(e).Stringers(key, vals))
+}
+func (e *Event) StringersV(key string, vals ...fmt.Stringer) *Event {
+	return toEvent(toZeroEvent(e).StringersV(key, vals...))
 }
 
 func (e *Event) Bytes(key string, val []byte) *Event {
@@ -960,4 +1127,12 @@ func (e *Event) Msg(msg string) {
 
 func (e *Event) Msgf(format string, v ...interface{}) {
 	toZeroEvent(e).Msgf(format, v...)
+}
+
+func (e *Event) MsgFunc(createMsg func() string) {
+	toZeroEvent(e).MsgFunc(createMsg)
+}
+
+func (e *Event) Msgln(format string, v ...interface{}) {
+	toZeroEvent(e).Msg(fmt.Sprint(v...))
 }
