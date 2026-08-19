@@ -90,7 +90,7 @@ func NewLoggerHandler(l zerolog.Logger) *loggerHandler {
 	}
 }
 func (h *loggerHandler) Enabled(_ context.Context, level slog.Level) bool {
-	zl := slogToZerologLevel(level)
+	zl := LevelFromSlog(level)
 	if zl < zerolog.GlobalLevel() {
 		return false
 	}
@@ -98,7 +98,7 @@ func (h *loggerHandler) Enabled(_ context.Context, level slog.Level) bool {
 }
 
 func (h *loggerHandler) Handle(ctx context.Context, r slog.Record) error {
-	zlevel := slogToZerologLevel(r.Level)
+	zlevel := LevelFromSlog(r.Level)
 	event := h.Logger.WithLevel(zlevel)
 	if event == nil {
 		return nil
@@ -190,11 +190,11 @@ func (h *loggerHandler) clone() *loggerHandler {
 	return h2
 }
 
-// slogToZerologLevel maps slog levels to zerolog levels.
+// LevelFromSlog maps slog levels to zerolog levels.
 //
 // slog levels:  Debug=-4, Info=0, Warn=4, Error=8
 // zerolog levels: Trace=-1, Debug=0, Info=1, Warn=2, Error=3, Fatal=4, Panic=5
-func slogToZerologLevel(level slog.Level) zerolog.Level {
+func LevelFromSlog(level slog.Level) zerolog.Level {
 	switch {
 	case level < slog.LevelDebug:
 		return zerolog.TraceLevel
