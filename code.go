@@ -53,32 +53,36 @@ func NewCodeSlow(skip, code int, format string, a ...interface{}) (c *Code) {
 	}
 	c = &Code{code: code, msg: format}
 
-	pcs := pool.Get().(*[DefaultDepth]uintptr)
-	n := runtime.Callers(skip+baseSkip, pcs[:DefaultDepth-skip])
-	// key := toString(pcs[:n])
+	if skip >= 0 {
+		pcs := pool.Get().(*[DefaultDepth]uintptr)
+		n := runtime.Callers(skip+baseSkip, pcs[:DefaultDepth-skip])
+		// key := toString(pcs[:n])
 
-	cs := cacheStack.Get(pcs, n)
-	if cs == nil {
-		cs = &callers{}
-		for _, c := range parseSlow(pcs[:n]) {
-			cs.stack = append(cs.stack, c.String())
-		}
-		l := 0
-		for i, str := range cs.stack {
-			// 检查是否需要转换 JSON 特殊字符串
-			lStack, yes := countEscape(str)
-			l += lStack
-			if yes {
-				cs.attr |= 1 << i
+		cs := cacheStack.Get(pcs, n)
+		if cs == nil {
+			cs = &callers{}
+			for _, c := range parseSlow(pcs[:n]) {
+				cs.stack = append(cs.stack, c.String())
 			}
-		}
-		cs.attr |= uint64(l) << 32
+			l := 0
+			for i, str := range cs.stack {
+				// 检查是否需要转换 JSON 特殊字符串
+				lStack, yes := countEscape(str)
+				l += lStack
+				if yes {
+					cs.attr |= 1 << i
+				}
+			}
+			cs.attr |= uint64(l) << 32
 
-		// 加入
-		cacheStack.Set(pcs, n, cs)
+			// 加入
+			cacheStack.Set(pcs, n, cs)
+		}
+		pool.Put(pcs)
+		c.cache = cs
+	} else {
+		c.skip = DefaultDepth + 88
 	}
-	pool.Put(pcs)
-	c.cache = cs
 	return
 }
 
