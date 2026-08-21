@@ -46,7 +46,7 @@ func With() lxtlog.Context {
 }
 
 // Level creates a child logger with the minimum accepted level set to level.
-func Level(level zerolog.Level) lxtlog.Logger {
+func Level(level lxtlog.Level) lxtlog.Logger {
 	return Logger.Level(level)
 }
 

@@ -37,7 +37,7 @@ import (
 )
 
 // Level defines log levels.
-type Level zerolog.Level
+type Level = zerolog.Level
 
 const (
 	// DebugLevel defines debug log level.
@@ -148,8 +148,8 @@ func (l *Logger) UpdateContext(update func(c Context) Context) {
 }
 
 // Level creates a child logger with the minimum accepted level set to level.
-func (l Logger) Level(lvl zerolog.Level) Logger {
-	l = Logger(zerolog.Logger(l).Level(lvl))
+func (l Logger) Level(lvl Level) Logger {
+	l = Logger(zerolog.Logger(l).Level(zerolog.Level(lvl)))
 	return l
 }
 
