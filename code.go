@@ -143,17 +143,38 @@ func JoinStr(a, con, b string) string {
 	if a == "" {
 		return b
 	}
+	if b == "" {
+		return a
+	}
 	return a + con + b
 }
 
-func (e *Code) WithErr(err error) *Code {
+func getMsg(err error) string {
 	if err == nil {
-		return NewCode(1, e.code, e.msg)
+		return ""
 	}
 	if f := getErrorFunc(err); f != nil {
-		return NewCode(1, e.code, JoinStr(e.msg, "; ", f(err)))
+		return f(err)
 	}
-	return NewCode(1, e.code, JoinStr(e.msg, "; ", err.Error()))
+	return err.Error()
+}
+
+func (e *Code) WithErr(err error) *Code {
+	return NewCode(1, e.code, JoinStr(e.msg, "; ", getMsg(err)))
+}
+
+func (e *Code) Wrap(err error) *Code {
+	if e1, ok := err.(*Code); ok {
+		return e1
+	}
+	return NewCode(1, e.code, JoinStr(e.msg, "; ", getMsg(err)))
+}
+
+func (e *Code) Reset(err error) *Code {
+	if e1, ok := err.(*Code); ok {
+		return NewCode(1, e.code, JoinStr(e.msg, "; ", e1.msg))
+	}
+	return NewCode(1, e.code, JoinStr(e.msg, "; ", getMsg(err)))
 }
 
 func (e *Code) Clone(msg ...string) *Code {
