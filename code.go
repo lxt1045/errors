@@ -159,11 +159,11 @@ func getMsg(err error) string {
 	return err.Error()
 }
 
-func (e *Code) WithErr(err error) *Code {
+func (e *Code) Wrap(err error) *Code {
 	return NewCode(1, e.code, JoinStr(e.msg, "; ", getMsg(err)))
 }
 
-func (e *Code) Wrap(err error) *Code {
+func (e *Code) WithErr(err error) *Code {
 	if e1, ok := err.(*Code); ok {
 		return e1
 	}
