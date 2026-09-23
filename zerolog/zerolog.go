@@ -814,6 +814,9 @@ func (e *Event) ObjectsV(key string, objs ...zerolog.LogObjectMarshaler) *Event 
 
 // Func allows an anonymous func to run only if the event is enabled.
 func (e *Event) Func(f func(e *Event)) *Event {
+	if f == nil {
+		return e
+	}
 	return toEvent(
 		toZeroEvent(e).Func(
 			func(e *zerolog.Event) {
